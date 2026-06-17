@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-$HOME/teacher-management-django}"
+APP_DIR="${APP_DIR:-$PWD/../app}"
 BACKUP_DIR="$APP_DIR/backups"
 DB_FILE="$APP_DIR/db.sqlite3"
 
@@ -20,8 +20,8 @@ fi
 echo "==> Pull latest code"
 git pull origin main
 
-echo "==> Activate virtual environment"
-source .venv/bin/activate
+# echo "==> Activate virtual environment"
+# source .$VENV/bin/activate
 
 echo "==> Install/update dependencies"
 pip install -r requirements.txt
