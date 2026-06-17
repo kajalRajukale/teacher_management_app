@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Teacher Management{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <h1>Teacher Management</h1>
+            <p>Schools, courses, teachers and attendance planning</p>
+        </div>
+        <nav>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'teacher_list' %}">Teachers</a>
+            <a href="{% url 'school_list' %}">Schools</a>
+            <a href="{% url 'course_list' %}">Courses</a>
+            <a href="{% url 'attendance_list' %}">Attendance</a>
+            <a href="/admin/">Admin</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

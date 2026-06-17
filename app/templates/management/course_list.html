@@ -1,0 +1,41 @@
+{% extends "management/base.html" %}
+{% block title %}Courses{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="section-header">
+        <h2>Courses</h2>
+        <a class="button" href="{% url 'course_create' %}">Add course</a>
+    </div>
+
+    {% if courses %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Subject</th>
+                    <th>Level</th>
+                    <th>Description</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for course in courses %}
+                    <tr>
+                        <td>{{ course.name }}</td>
+                        <td>{{ course.subject|default:"-" }}</td>
+                        <td>{{ course.level|default:"-" }}</td>
+                        <td>{{ course.description|default:"-"|truncatechars:80 }}</td>
+                        <td class="right">
+                            <a href="{% url 'course_update' course.id %}">Edit</a>
+                            <a class="danger" href="{% url 'course_delete' course.id %}">Delete</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No courses created yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

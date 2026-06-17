@@ -1,0 +1,30 @@
+{% extends "management/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="card narrow">
+    <div class="section-header">
+        <h2>{{ title }}</h2>
+        <a href="{% url back_url %}">Back</a>
+    </div>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+
+        {% for field in form %}
+            <div class="form-row">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                    <small>{{ field.help_text }}</small>
+                {% endif %}
+                {% for error in field.errors %}
+                    <small class="error">{{ error }}</small>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <button type="submit">Save</button>
+    </form>
+</section>
+{% endblock %}

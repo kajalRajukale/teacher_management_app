@@ -1,0 +1,80 @@
+# justfile for Teacher Management Django App
+#
+# All real actions live in ./scripts to avoid quoting/parsing issues.
+#
+# Show commands:
+#   just
+
+set shell := ["bash", "-cu"]
+
+default:
+    just --list
+
+setup:
+    scripts/setup.sh
+
+run:
+    scripts/run.sh
+
+run-port port="8000":
+    scripts/run.sh {{port}}
+
+check:
+    scripts/check.sh
+
+test:
+    scripts/test.sh
+
+validate:
+    scripts/validate.sh
+
+makemigrations:
+    scripts/makemigrations.sh
+
+migrate:
+    scripts/migrate.sh
+
+superuser:
+    scripts/superuser.sh
+
+static:
+    scripts/static.sh
+
+shell:
+    scripts/shell.sh
+
+freeze:
+    scripts/freeze.sh
+
+clean:
+    scripts/clean.sh
+
+reset-db:
+    scripts/reset_db.sh
+
+demo-data:
+    scripts/demo_data.sh
+
+git-status:
+    scripts/git_status.sh
+
+commit msg:
+    scripts/commit.sh "{{msg}}"
+
+push:
+    scripts/push.sh
+
+release msg:
+    scripts/release.sh "{{msg}}"
+
+pa-deploy:
+    ./deploy.sh
+
+pa-update:
+    scripts/pythonanywhere_update.sh
+
+api:
+    scripts/show_api.sh
+
+pages:
+    scripts/show_pages.sh

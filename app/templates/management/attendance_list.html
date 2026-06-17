@@ -1,0 +1,56 @@
+{% extends "management/base.html" %}
+{% block title %}Attendance{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="section-header">
+        <h2>Attendance plan</h2>
+        <a class="button" href="{% url 'attendance_create' %}">Add attendance</a>
+    </div>
+
+    {% if attendances %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    <th>School</th>
+                    <th>Course</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Room</th>
+                    <th>Dates</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attendance in attendances %}
+                    <tr>
+                        <td>{{ attendance.teacher.full_name }}</td>
+                        <td>{{ attendance.school.name }}</td>
+                        <td>{{ attendance.course.name }}</td>
+                        <td>{{ attendance.get_weekday_display }}</td>
+                        <td>{{ attendance.start_time }} - {{ attendance.end_time }}</td>
+                        <td>{{ attendance.room|default:"-" }}</td>
+                        <td>
+                            {% if attendance.start_date %}
+                                {{ attendance.start_date }}
+                            {% else %}
+                                -
+                            {% endif %}
+                            {% if attendance.end_date %}
+                                to {{ attendance.end_date }}
+                            {% endif %}
+                        </td>
+                        <td class="right">
+                            <a href="{% url 'attendance_update' attendance.id %}">Edit</a>
+                            <a class="danger" href="{% url 'attendance_delete' attendance.id %}">Delete</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No attendance entries created yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

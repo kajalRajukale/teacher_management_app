@@ -1,0 +1,43 @@
+{% extends "management/base.html" %}
+{% block title %}Schools{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="section-header">
+        <h2>Schools</h2>
+        <a class="button" href="{% url 'school_create' %}">Add school</a>
+    </div>
+
+    {% if schools %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>City</th>
+                    <th>Address</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for school in schools %}
+                    <tr>
+                        <td>{{ school.name }}</td>
+                        <td>{{ school.city|default:"-" }}</td>
+                        <td>{{ school.address|default:"-" }}</td>
+                        <td>{{ school.email|default:"-" }}</td>
+                        <td>{{ school.phone|default:"-" }}</td>
+                        <td class="right">
+                            <a href="{% url 'school_update' school.id %}">Edit</a>
+                            <a class="danger" href="{% url 'school_delete' school.id %}">Delete</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No schools created yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

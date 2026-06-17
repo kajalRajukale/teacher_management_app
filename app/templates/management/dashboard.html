@@ -1,0 +1,64 @@
+{% extends "management/base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <h2>Dashboard</h2>
+    <p>Overview of all core teaching resources and scheduled attendance entries.</p>
+</section>
+
+<section class="stats">
+    <article>
+        <span>{{ teacher_count }}</span>
+        <strong>Teachers</strong>
+    </article>
+    <article>
+        <span>{{ school_count }}</span>
+        <strong>Schools</strong>
+    </article>
+    <article>
+        <span>{{ course_count }}</span>
+        <strong>Courses</strong>
+    </article>
+    <article>
+        <span>{{ attendance_count }}</span>
+        <strong>Attendance entries</strong>
+    </article>
+</section>
+
+<section class="card">
+    <div class="section-header">
+        <h2>Current attendance plan</h2>
+        <a class="button" href="{% url 'attendance_create' %}">Add attendance</a>
+    </div>
+
+    {% if upcoming_attendances %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    <th>School</th>
+                    <th>Course</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Room</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attendance in upcoming_attendances %}
+                    <tr>
+                        <td>{{ attendance.teacher.full_name }}</td>
+                        <td>{{ attendance.school.name }}</td>
+                        <td>{{ attendance.course.name }}</td>
+                        <td>{{ attendance.get_weekday_display }}</td>
+                        <td>{{ attendance.start_time }} - {{ attendance.end_time }}</td>
+                        <td>{{ attendance.room|default:"-" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No attendance entries yet.</p>
+    {% endif %}
+</section>
+{% endblock %}
