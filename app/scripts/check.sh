@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-.venv/bin/python manage.py check
+python manage.py check

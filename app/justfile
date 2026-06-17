@@ -1,80 +1,144 @@
 # justfile for Teacher Management Django App
 #
-# All real actions live in ./scripts to avoid quoting/parsing issues.
+# Simple commands stay here.
+# Only complex multi-line / quoted commands are moved to ./scripts.
 #
 # Show commands:
 #   just
 
 set shell := ["bash", "-cu"]
 
+PROJECT := "teacher-management-django"
+PYTHON := "python3"
+VENV := ".venv"
+PY := "python"
+PIP := ".venv/bin/pip"
+MANAGE := "python manage.py"
+
 default:
     just --list
 
-setup:
-    scripts/setup.sh
+# Create local virtual environment
+venv:
+    {{PYTHON}} -m venv {{VENV}}
+    {{PIP}} install --upgrade pip
 
+# Install dependencies
+install:
+    {{PIP}} install -r requirements.txt
+
+# First local setup
+setup: venv install migrate
+    @echo "Setup complete. Next: just superuser && just run"
+
+# Run local development server
 run:
-    scripts/run.sh
+    {{MANAGE}} runserver
 
+# Run server on custom port
 run-port port="8000":
-    scripts/run.sh {{port}}
+    {{MANAGE}} runserver 0.0.0.0:{{port}}
 
+# Django project check
 check:
-    scripts/check.sh
+    {{MANAGE}} check
 
-test:
-    scripts/test.sh
-
-validate:
-    scripts/validate.sh
-
+# Create migrations
 makemigrations:
-    scripts/makemigrations.sh
+    {{MANAGE}} makemigrations
 
+# Apply migrations
 migrate:
-    scripts/migrate.sh
+    {{MANAGE}} migrate
 
+# Create admin user
 superuser:
-    scripts/superuser.sh
+    {{MANAGE}} createsuperuser
 
-static:
-    scripts/static.sh
-
+# Django shell
 shell:
-    scripts/shell.sh
+    {{MANAGE}} shell
 
+# Collect static files
+static:
+    {{MANAGE}} collectstatic --noinput
+
+# Run tests
+test:
+    {{MANAGE}} test
+
+# Validate project
+validate: check test
+    @echo "Validation complete."
+
+# Update requirements.txt
 freeze:
-    scripts/freeze.sh
+    {{PIP}} freeze > requirements.txt
 
+# Complex cleanup is kept in script
 clean:
     scripts/clean.sh
 
+# Complex reset operation is kept in script
 reset-db:
     scripts/reset_db.sh
 
+# Demo data uses Python code, therefore it stays in script
 demo-data:
     scripts/demo_data.sh
 
+# Git status
 git-status:
-    scripts/git_status.sh
+    git status
 
+# Commit all changes
 commit msg:
-    scripts/commit.sh "{{msg}}"
+    git add .
+    git commit -m "{{msg}}"
 
+# Push main branch
 push:
-    scripts/push.sh
+    git push origin main
 
-release msg:
-    scripts/release.sh "{{msg}}"
+# Validate, commit and push
+release msg: validate
+    git add .
+    git commit -m "{{msg}}"
+    git push origin main
 
+# PythonAnywhere deployment needs backup + pull + migrate + collectstatic
 pa-deploy:
-    ./deploy.sh
+    scripts/deploy_pythonanywhere.sh
 
+# Manual PythonAnywhere update without backup
 pa-update:
-    scripts/pythonanywhere_update.sh
+    git pull origin main
+    source .venv/bin/activate && pip install -r requirements.txt
+    source .venv/bin/activate && python manage.py migrate
+    source .venv/bin/activate && python manage.py collectstatic --noinput
+    @echo "Now reload the web app in the PythonAnywhere Web tab."
 
+# Show API endpoints
 api:
-    scripts/show_api.sh
+    @echo "GET              /api/teachers/"
+    @echo "POST             /api/teachers/create/"
+    @echo "GET              /api/teachers/<id>/"
+    @echo "POST/PUT/PATCH   /api/teachers/<id>/update/"
+    @echo "DELETE/POST      /api/teachers/<id>/delete/"
+    @echo "GET              /api/schools/"
+    @echo "GET              /api/courses/"
+    @echo "GET              /api/attendances/"
+    @echo "POST             /api/attendances/create/"
 
+# Show frontend pages
 pages:
-    scripts/show_pages.sh
+    @echo "/                         Dashboard"
+    @echo "/teachers/                 Teacher list"
+    @echo "/teachers/new/             Create teacher"
+    @echo "/schools/                  School list"
+    @echo "/schools/new/              Create school"
+    @echo "/courses/                  Course list"
+    @echo "/courses/new/              Create course"
+    @echo "/attendances/              Attendance plan"
+    @echo "/attendances/new/          Create attendance"
+    @echo "/admin/                    Django admin"
