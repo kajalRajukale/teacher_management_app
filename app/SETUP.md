@@ -178,3 +178,126 @@ Do not commit:
 - secrets
 
 Always commit migrations when changing models.
+
+
+## 11. Justfile Commands
+
+The project includes a `justfile`.
+
+Install `just` locally:
+
+```bash
+brew install just
+```
+
+or:
+
+```bash
+pipx install rust-just
+```
+
+Show available recipes:
+
+```bash
+just
+```
+
+Recommended local setup:
+
+```bash
+just setup
+just superuser
+just run
+```
+
+Common development commands:
+
+```bash
+just check
+just makemigrations
+just migrate
+just test
+just static
+just validate
+```
+
+Commit and push workflow:
+
+```bash
+just release "Describe your change"
+```
+
+PythonAnywhere deployment:
+
+```bash
+cd ~/teacher-management-django
+just pa-deploy
+```
+
+If `just` is not installed on PythonAnywhere, run:
+
+```bash
+cd ~/teacher-management-django
+./deploy.sh
+```
+
+## 12. Justfile and Scripts Strategy
+
+The `justfile` now keeps simple commands directly inside the file.
+
+Examples:
+
+```make
+migrate:
+    .venv/bin/python manage.py migrate
+
+run:
+    .venv/bin/python manage.py runserver
+
+push:
+    git push origin main
+```
+
+Only commands that need more complex Bash logic or separate Python code are external scripts.
+
+External scripts:
+
+```text
+scripts/clean.sh
+scripts/reset_db.sh
+scripts/create_demo_data.py
+scripts/demo_data.sh
+scripts/deploy_pythonanywhere.sh
+```
+
+Recommended commands:
+
+```bash
+just setup
+just superuser
+just demo-data
+just run
+```
+
+PythonAnywhere deployment:
+
+```bash
+just pa-deploy
+```
+
+Without `just`:
+
+```bash
+./deploy.sh
+```
+
+
+## 13. AI Prompt File
+
+The project contains:
+
+```text
+PROMPT.md
+```
+
+This file documents all requirements and contains a ready-to-use prompt for an AI coding assistant to recreate the complete application.

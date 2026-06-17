@@ -159,3 +159,157 @@ Then reload the web app in the PythonAnywhere Web tab.
 ## Assistant answer summary
 
 This ZIP contains a ready-to-use Django project for a teacher management application. It implements a SQLite backend, CRUD pages with Django templates and CSS, basic JSON API endpoints, admin integration, deployment script, `.gitignore`, and setup instructions for local development and PythonAnywhere deployment through GitHub and `git pull`.
+
+
+## Justfile commands
+
+This project includes a `justfile` with common development and deployment commands.
+
+Install `just`:
+
+```bash
+brew install just
+```
+
+or:
+
+```bash
+pipx install rust-just
+```
+
+Show commands:
+
+```bash
+just
+```
+
+Useful commands:
+
+```bash
+just setup
+just run
+just makemigrations
+just migrate
+just superuser
+just static
+just validate
+just release "Update app"
+just pa-deploy
+```
+
+On PythonAnywhere, after pulling the repository, you can run:
+
+```bash
+cd ~/teacher-management-django
+just pa-deploy
+```
+
+or without `just`:
+
+```bash
+cd ~/teacher-management-django
+./deploy.sh
+```
+
+## Justfile commands
+
+The project includes a `justfile`.
+
+Simple commands stay directly in the `justfile`, for example:
+
+```bash
+python manage.py migrate
+python manage.py runserver
+git status
+git push origin main
+```
+
+Only commands that need longer Bash logic or separate Python code are external scripts under `scripts/`.
+
+Install `just`:
+
+```bash
+brew install just
+```
+
+or:
+
+```bash
+pipx install rust-just
+```
+
+Show commands:
+
+```bash
+just
+```
+
+Useful commands:
+
+```bash
+just setup
+just run
+just makemigrations
+just migrate
+just superuser
+just static
+just validate
+just demo-data
+just release "Update app"
+just pa-deploy
+```
+
+## Scripts folder
+
+Only complex actions are in `scripts/`:
+
+```text
+scripts/
+├── clean.sh
+├── create_demo_data.py
+├── demo_data.sh
+├── deploy_pythonanywhere.sh
+└── reset_db.sh
+```
+
+Use these directly if `just` is not installed:
+
+```bash
+scripts/demo_data.sh
+scripts/deploy_pythonanywhere.sh
+```
+
+## PythonAnywhere update
+
+Local:
+
+```bash
+git add .
+git commit -m "Update app"
+git push origin main
+```
+
+PythonAnywhere:
+
+```bash
+cd ~/teacher-management-django
+just pa-deploy
+```
+
+or:
+
+```bash
+cd ~/teacher-management-django
+./deploy.sh
+```
+
+
+## AI generation prompt
+
+This project includes:
+
+```text
+PROMPT.md
+```
+
+`PROMPT.md` contains the complete specification and a reusable AI prompt for recreating this application from scratch.

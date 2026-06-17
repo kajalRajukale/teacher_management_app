@@ -8,12 +8,12 @@
 
 set shell := ["bash", "-cu"]
 
-PROJECT := "teacher-management-django"
-PYTHON := "python3"
-VENV := ".venv"
-PY := "python"
-PIP := ".venv/bin/pip"
-MANAGE := "python manage.py"
+PROJECT := "teacher-management-app"
+PYTHON  := "python3"
+VENV    := "../.venv/python"
+PY      := "python"
+PIP     := "pip"
+MANAGE  := PY + " manage.py"
 
 default:
     just --list
