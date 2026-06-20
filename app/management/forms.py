@@ -40,6 +40,7 @@ class AttendanceForm(forms.ModelForm):
             "start_time",
             "end_time",
             "room",
+            "location",
             "start_date",
             "end_date",
             "notes",

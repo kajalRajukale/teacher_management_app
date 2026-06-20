@@ -18,6 +18,7 @@
                     <th>Day</th>
                     <th>Time</th>
                     <th>Room</th>
+                    <th>Location</th>
                     <th>Dates</th>
                     <th class="right">Actions</th>
                 </tr>
@@ -31,6 +32,7 @@
                         <td>{{ attendance.get_weekday_display }}</td>
                         <td>{{ attendance.start_time }} - {{ attendance.end_time }}</td>
                         <td>{{ attendance.room|default:"-" }}</td>
+                        <td>{{ attendance.location|default:"-" }}</td>
                         <td>
                             {% if attendance.start_date %}
                                 {{ attendance.start_date }}
