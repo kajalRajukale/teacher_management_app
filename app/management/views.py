@@ -1,5 +1,11 @@
 import json
+import os
+import subprocess
+import glob
+import io
 
+from django.conf import settings
+from django.core.management import call_command
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -384,3 +390,118 @@ def api_attendance_create(request):
     )
 
     return JsonResponse(attendance_to_dict(attendance), status=201)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_manage_update(request):
+    # Retrieve security token from headers or Authorization header
+    provided_token = request.headers.get("X-Management-Token")
+    if not provided_token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            provided_token = auth_header.split(" ", 1)[1]
+
+    # Or retrieve from request body / GET param
+    if not provided_token:
+        try:
+            payload = json.loads(request.body or "{}")
+            provided_token = payload.get("token")
+        except Exception:
+            pass
+
+    expected_token = os.environ.get("MANAGEMENT_API_TOKEN")
+
+    if not expected_token:
+        return JsonResponse({
+            "status": "error",
+            "message": "Management token is not configured on the server. Please set the MANAGEMENT_API_TOKEN environment variable."
+        }, status=500)
+
+    if provided_token != expected_token:
+        return JsonResponse({
+            "status": "error",
+            "message": "Unauthorized"
+        }, status=403)
+
+    log = []
+
+    # 1. git pull
+    try:
+        log.append("Executing git pull...")
+        res = subprocess.run(
+            ["git", "pull"],
+            cwd=str(settings.BASE_DIR),
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        log.append(f"git pull output: {res.stdout.strip()}")
+        if res.stderr:
+            log.append(f"git pull stderr: {res.stderr.strip()}")
+    except subprocess.CalledProcessError as e:
+        log.append(f"git pull failed: {e.stderr or str(e)}")
+        return JsonResponse({
+            "status": "error",
+            "message": "Git pull failed",
+            "log": log
+        }, status=500)
+    except Exception as e:
+        log.append(f"git pull error: {str(e)}")
+        return JsonResponse({
+            "status": "error",
+            "message": f"Git pull encountered an error: {str(e)}",
+            "log": log
+        }, status=500)
+
+    # 2. makemigrations
+    try:
+        log.append("Executing makemigrations...")
+        out = io.StringIO()
+        call_command("makemigrations", stdout=out, stderr=out)
+        log.append(f"makemigrations output: {out.getvalue().strip()}")
+    except Exception as e:
+        log.append(f"makemigrations error: {str(e)}")
+        return JsonResponse({
+            "status": "error",
+            "message": f"makemigrations failed: {str(e)}",
+            "log": log
+        }, status=500)
+
+    # 3. migrate
+    try:
+        log.append("Executing migrate...")
+        out = io.StringIO()
+        call_command("migrate", stdout=out, stderr=out)
+        log.append(f"migrate output: {out.getvalue().strip()}")
+    except Exception as e:
+        log.append(f"migrate error: {str(e)}")
+        return JsonResponse({
+            "status": "error",
+            "message": f"migrate failed: {str(e)}",
+            "log": log
+        }, status=500)
+
+    # 4. Restart server (touch PythonAnywhere wsgi files or local config/wsgi.py)
+    try:
+        log.append("Triggering server reload...")
+        reloaded_files = []
+        wsgi_files = glob.glob("/var/www/*_wsgi.py")
+        for wsgi_file in wsgi_files:
+            os.utime(wsgi_file, None)
+            reloaded_files.append(wsgi_file)
+
+        local_wsgi = settings.BASE_DIR / "config" / "wsgi.py"
+        if local_wsgi.exists():
+            os.utime(str(local_wsgi), None)
+            reloaded_files.append(str(local_wsgi))
+
+        log.append(f"Reloaded WSGI configuration files: {reloaded_files}")
+    except Exception as e:
+        log.append(f"Server reload error: {str(e)}")
+
+    return JsonResponse({
+        "status": "success",
+        "message": "Git pull, migrations, and server restart triggered successfully.",
+        "log": log
+    })

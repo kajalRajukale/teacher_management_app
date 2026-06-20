@@ -37,6 +37,8 @@ Available JSON endpoints:
 | GET | `/api/courses/` | List courses |
 | GET | `/api/attendances/` | List attendance entries |
 | POST | `/api/attendances/create/` | Create attendance entry |
+| POST | `/api/manage/update/` | Run `git pull`, `makemigrations`, `migrate`, and restart the server |
+
 
 ## Local setup
 
@@ -88,6 +90,37 @@ curl -X POST http://127.0.0.1:8000/api/teachers/create/ \
     "qualification": "Mathematics teacher",
     "active": true
   }'
+```
+
+Trigger update (Git Pull, Migrations & Server Reload):
+
+Requires the environment variable `MANAGEMENT_API_TOKEN` to be set on the server. Send this token using the `X-Management-Token` header.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/manage/update/ \
+  -H "X-Management-Token: YOUR_MANAGEMENT_TOKEN"
+```
+
+### GitHub Actions Workflow Example
+
+You can set up a GitHub Action to trigger this update whenever you push to the `main` branch. Add the token to your GitHub Repository Secrets as `MANAGEMENT_API_TOKEN`.
+
+```yaml
+name: Deploy Web App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Update API
+        run: |
+          curl -X POST https://YOUR_USERNAME.pythonanywhere.com/api/manage/update/ \
+            -H "X-Management-Token: ${{ secrets.MANAGEMENT_API_TOKEN }}"
 ```
 
 ## PythonAnywhere deployment

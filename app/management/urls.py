@@ -35,4 +35,5 @@ urlpatterns = [
     path("api/courses/", views.api_course_list, name="api_course_list"),
     path("api/attendances/", views.api_attendance_list, name="api_attendance_list"),
     path("api/attendances/create/", views.api_attendance_create, name="api_attendance_create"),
+    path("api/manage/update/", views.api_manage_update, name="api_manage_update"),
 ]
