@@ -273,7 +273,13 @@ tr:last-child td {
 
 .form-row {
     display: grid;
-    gap: 7px;
+    grid-template-columns: 200px 1fr;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-row small {
+    grid-column: 2;
 }
 
 label {
@@ -327,5 +333,14 @@ input[type="checkbox"] {
     .section-header {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .form-row small {
+        grid-column: 1;
     }
 }
