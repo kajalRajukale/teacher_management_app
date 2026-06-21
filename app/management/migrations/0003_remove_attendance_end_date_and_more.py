@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
             name='latitude',
             field=models.FloatField(blank=True, null=True),
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='attendance',
             name='location',
             field=models.CharField(blank=True, help_text='Human readable location or address description', max_length=255, null=True),

@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 class School(models.Model):
@@ -7,10 +9,12 @@ class School(models.Model):
     address = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
-    latitude = models.FloatField(null=True, blank=True)
-    longitude = models.FloatField(null=True, blank=True)
-    geo_fence_radius = models.IntegerField(default=100, help_text="Radius in meters")
+    school_latitude = models.FloatField(null=True, blank=True)
+    school_longitude = models.FloatField(null=True, blank=True)
+    allowed_radius_meters = models.IntegerField(default=100, help_text="Allowed radius in meters")
     
+    class Meta:
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
@@ -22,11 +26,15 @@ class Course(models.Model):
     level = models.CharField(max_length=50)
     description = models.TextField(blank=True)
 
+    class Meta:
+        ordering = ["name"]
+
     def __str__(self):
         return self.name
 
 
 class Teacher(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='teacher_profile')
     first_name = models.CharField(max_length=120)
     last_name = models.CharField(max_length=120)
     email = models.EmailField(blank=True)
@@ -34,10 +42,10 @@ class Teacher(models.Model):
     qualification = models.CharField(max_length=200, blank=True)
     notes = models.TextField(blank=True)
     active = models.BooleanField(default=True)
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
+    school = models.ForeignKey(School, on_delete=models.SET_NULL, null=True, blank=True, related_name='teachers')
 
-
-    
+    class Meta:
+        ordering = ["last_name", "first_name"]
 
     @property
     def full_name(self):
@@ -48,25 +56,73 @@ class Teacher(models.Model):
 
 
 class Attendance(models.Model):
-    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE)
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    class StatusChoices(models.TextChoices):
+        PRESENT = 'PRESENT', 'Present'
+        ABSENT = 'ABSENT', 'Absent'
+        LEAVE = 'LEAVE', 'Leave'
+        CL = 'CL', 'CL (Casual Leave)'
+        HALF_DAY = 'HALF_DAY', 'Half Day'
 
-    attendance_date = models.DateField()
-    status = models.CharField(max_length=20)
+    WEEKDAY_CHOICES = [
+        ('MON', 'Monday'),
+        ('TUE', 'Tuesday'),
+        ('WED', 'Wednesday'),
+        ('THU', 'Thursday'),
+        ('FRI', 'Friday'),
+        ('SAT', 'Saturday'),
+        ('SUN', 'Sunday'),
+    ]
 
-    weekday = models.CharField(max_length=20, blank=True)
+    VERIFICATION_CHOICES = [
+        ('GPS', 'GPS'),
+        ('SELFIE', 'Selfie Verification'),
+        ('FACE', 'Face Recognition'),
+        ('QR', 'QR Code'),
+        ('DEVICE', 'Device Verification'),
+        ('WIFI', 'WiFi Verification'),
+    ]
+
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='attendances')
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='attendances')
+    course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name='attendances')
+
+    attendance_date = models.DateField(default=timezone.now)
+    status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.PRESENT)
+
+    weekday = models.CharField(max_length=20, blank=True, choices=WEEKDAY_CHOICES)
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     room = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True)
-    marked_at = models.DateTimeField(auto_now_add=True)
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    marked_at = models.DateTimeField(default=timezone.now)
+    
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
-    location = models.CharField(max_length=255, blank=True)
+    location = models.CharField(max_length=255, blank=True, null=True, help_text="Human readable location or address description")
     distance_from_school = models.FloatField(null=True, blank=True, help_text="Distance in meters")
-    attendance_time = models.TimeField(null=True, blank=True)
-
+    attendance_time = models.TimeField(default=timezone.now)
     
+    device_id = models.CharField(blank=True, max_length=255, null=True)
+    face_confidence = models.FloatField(blank=True, null=True)
+    qr_code_data = models.CharField(blank=True, max_length=255, null=True)
+    selfie_image = models.ImageField(blank=True, null=True, upload_to='attendance_selfies/')
+    verification_method = models.CharField(max_length=50, choices=VERIFICATION_CHOICES, default='GPS')
+    wifi_bssid = models.CharField(blank=True, max_length=255, null=True)
+    wifi_ssid = models.CharField(blank=True, max_length=255, null=True)
+
+    class Meta:
+        ordering = ['-attendance_date', 'weekday', 'start_time', 'teacher__last_name']
+        constraints = [
+            models.UniqueConstraint(fields=['teacher', 'attendance_date'], name='unique_teacher_attendance_per_day')
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.weekday and self.attendance_date:
+            weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+            self.weekday = weekdays[self.attendance_date.weekday()]
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.teacher} - {self.attendance_date}"

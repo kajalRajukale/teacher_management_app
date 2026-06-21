@@ -27,9 +27,9 @@ class SchoolForm(forms.ModelForm):
             "address", 
             "phone", 
             "email", 
-            "latitude", 
-            "longitude", 
-            "geo_fence_radius"
+            "school_latitude", 
+            "school_longitude", 
+            "allowed_radius_meters"
         ]
 
 
