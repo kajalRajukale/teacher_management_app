@@ -10,6 +10,7 @@ class School(models.Model):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     geo_fence_radius = models.IntegerField(default=100, help_text="Radius in meters")
+    
 
     def __str__(self):
         return self.name
@@ -33,6 +34,9 @@ class Teacher(models.Model):
     qualification = models.CharField(max_length=200, blank=True)
     notes = models.TextField(blank=True)
     active = models.BooleanField(default=True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE)
+
+
     
 
     @property
@@ -57,6 +61,12 @@ class Attendance(models.Model):
     room = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True)
     marked_at = models.DateTimeField(auto_now_add=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    location = models.CharField(max_length=255, blank=True)
+    distance_from_school = models.FloatField(null=True, blank=True, help_text="Distance in meters")
+    attendance_time = models.TimeField(null=True, blank=True)
 
+    
     def __str__(self):
         return f"{self.teacher} - {self.attendance_date}"

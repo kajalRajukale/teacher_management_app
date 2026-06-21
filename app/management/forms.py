@@ -14,7 +14,6 @@ class TeacherForm(forms.ModelForm):
             "qualification",
             "notes",
             "active",
-            "user",
             "school",
         ]
 
@@ -28,9 +27,9 @@ class SchoolForm(forms.ModelForm):
             "address", 
             "phone", 
             "email", 
-            "school_latitude", 
-            "school_longitude", 
-            "allowed_radius_meters"
+            "latitude", 
+            "longitude", 
+            "geo_fence_radius"
         ]
 
 
