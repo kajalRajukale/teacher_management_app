@@ -1,0 +1,216 @@
+{% extends "management/base.html" %}
+{% block title %}Mark Attendance - Teacher Management{% endblock %}
+
+{% block content %}
+<div class="narrow">
+    <div class="card" style="border-top: 4px solid #10b981; margin-top: 30px;">
+        <h2 style="text-align: center; color: #111827; margin-bottom: 8px;">Mark My Attendance</h2>
+        <p style="text-align: center; color: #64748b; margin-bottom: 24px; font-size: 14px;">Today: {{ today|date:"l, F d, Y" }}</p>
+
+        {% if success %}
+            <div style="background: #dcfce7; border-left: 4px solid #16a34a; color: #14532d; padding: 16px; border-radius: 8px; margin-bottom: 24px; font-weight: 500;">
+                {{ success }}
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <a href="{% url 'dashboard' %}" class="button">Go to Dashboard</a>
+                <a href="{% url 'attendance_list' %}" class="button secondary">View Records</a>
+            </div>
+        {% else %}
+            {% if error %}
+                <div style="background: #fee2e2; border-left: 4px solid #dc2626; color: #7f1d1d; padding: 16px; border-radius: 8px; margin-bottom: 24px; font-weight: 500;">
+                    <strong>Error:</strong> {{ error }}
+                    {% if distance and max_distance %}
+                        <p style="margin: 6px 0 0 0; font-size: 13px; font-weight: normal;">
+                            Calculated distance: <strong>{{ distance }}m</strong>. Maximum allowed radius: <strong>{{ max_distance }}m</strong>.
+                        </p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Location Detection Banner -->
+            <div id="location-banner" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center;">
+                <div id="location-spinner" style="border: 3px solid #cbd5e1; border-top: 3px solid #2757d7; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin-bottom: 10px;"></div>
+                <strong id="location-status" style="color: #475569;">Detecting your GPS location...</strong>
+                <p id="location-detail" style="color: #64748b; font-size: 13px; margin: 6px 0 0 0;">Please grant location access when prompted by your browser.</p>
+            </div>
+
+            <!-- Form contains only status and submit button as requested -->
+            <form method="post" id="attendance-form" class="form">
+                {% csrf_token %}
+                
+                <!-- Hidden inputs for automatic parameters -->
+                <input type="hidden" name="latitude" id="id_latitude">
+                <input type="hidden" name="longitude" id="id_longitude">
+
+                {% if not is_teacher %}
+                <!-- For Admin users only, show teacher & school dropdowns so they can mark on behalf -->
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label for="id_teacher_id">Teacher (Admin Override)</label>
+                    <select name="teacher_id" id="id_teacher_id" required>
+                        <option value="">-- Select Teacher --</option>
+                        {% for t in teachers %}
+                            <option value="{{ t.id }}">{{ t.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <label for="id_school_id">School (Admin Override)</label>
+                    <select name="school_id" id="id_school_id" required>
+                        <option value="">-- Select School --</option>
+                        {% for s in schools %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="form-row">
+                    <label for="id_status" style="font-size: 15px; margin-bottom: 4px;">Attendance Status</label>
+                    <select name="status" id="id_status" class="status-select" style="font-size: 16px; padding: 14px;">
+                        <option value="PRESENT">Present</option>
+                        <option value="ABSENT">Absent</option>
+                        <option value="LEAVE">Leave</option>
+                        <option value="CL">CL (Casual Leave)</option>
+                        <option value="HALF_DAY">Half Day</option>
+                    </select>
+                </div>
+
+                <div style="margin-top: 24px;">
+                    <button type="button" id="submit-btn" style="width: 100%; padding: 14px; font-size: 16px; background: #10b981; color: white; cursor: pointer; transition: all 0.2s; border: none; border-radius: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        Mark Attendance
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const statusText = document.getElementById("location-status");
+    const detailText = document.getElementById("location-detail");
+    const spinner = document.getElementById("location-spinner");
+    const banner = document.getElementById("location-banner");
+    const submitBtn = document.getElementById("submit-btn");
+    const latInput = document.getElementById("id_latitude");
+    const lngInput = document.getElementById("id_longitude");
+    const form = document.getElementById("attendance-form");
+
+    // Hide location banner by default until user clicks the button
+    if (banner) {
+        banner.style.display = "none";
+    }
+
+    if (!submitBtn) return;
+
+    if (!navigator.geolocation) {
+        submitBtn.disabled = true;
+        submitBtn.style.background = "#cbd5e1";
+        submitBtn.style.color = "#94a3b8";
+        submitBtn.style.cursor = "not-allowed";
+        
+        if (banner) {
+            statusText.innerHTML = "GPS Not Supported";
+            statusText.style.color = "#dc2626";
+            detailText.innerHTML = "Your browser does not support Geolocation. Please use a modern mobile browser.";
+            spinner.style.display = "none";
+            banner.style.background = "#fee2e2";
+            banner.style.borderColor = "#fecaca";
+            banner.style.display = "flex";
+        }
+        return;
+    }
+
+    const geoOptions = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+    };
+
+    submitBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+
+        // Put button and banner in loading state
+        submitBtn.disabled = true;
+        submitBtn.style.background = "#94a3b8";
+        submitBtn.innerHTML = `
+            <div style="border: 2px solid #ffffff; border-top: 2px solid transparent; border-radius: 50%; width: 16px; height: 16px; animation: spin 0.6s linear infinite;"></div>
+            Retrieving GPS Location...
+        `;
+        submitBtn.style.cursor = "wait";
+
+        if (banner) {
+            banner.style.display = "flex";
+            spinner.style.display = "block";
+            statusText.innerHTML = "Detecting your GPS location...";
+            statusText.style.color = "#475569";
+            detailText.innerHTML = "Please grant location access when prompted by your browser.";
+            banner.style.background = "#f1f5f9";
+            banner.style.borderColor = "#cbd5e1";
+        }
+
+        navigator.geolocation.getCurrentPosition(success, error, geoOptions);
+    });
+
+    function success(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+
+        // Set inputs
+        latInput.value = lat;
+        lngInput.value = lng;
+
+        // Update UI status
+        if (banner) {
+            statusText.innerHTML = "Location Locked Successfully";
+            statusText.style.color = "#15803d";
+            detailText.innerHTML = `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)} (Accuracy: ~${Math.round(accuracy)}m)`;
+            spinner.style.display = "none";
+            banner.style.background = "#dcfce7";
+            banner.style.borderColor = "#bbf7d0";
+        }
+
+        submitBtn.innerHTML = "Submitting Attendance...";
+
+        // Submit the form after a tiny visual feedback delay
+        setTimeout(() => {
+            form.submit();
+        }, 600);
+    }
+
+    function error(err) {
+        let msg = "Could not fetch GPS coordinates.";
+        if (err.code === 1) {
+            msg = "Location permission denied. Please allow location access in your browser settings.";
+        } else if (err.code === 2) {
+            msg = "Location unavailable. Please check your device's GPS connection or settings.";
+        } else if (err.code === 3) {
+            msg = "Location request timed out. Please try again.";
+        }
+        
+        if (banner) {
+            statusText.innerHTML = "Location Detection Failed";
+            statusText.style.color = "#dc2626";
+            detailText.innerHTML = msg;
+            spinner.style.display = "none";
+            banner.style.background = "#fee2e2";
+            banner.style.borderColor = "#fecaca";
+        }
+
+        // Restore button state
+        submitBtn.disabled = false;
+        submitBtn.style.background = "#10b981";
+        submitBtn.innerHTML = "Mark Attendance";
+        submitBtn.style.cursor = "pointer";
+    }
+});
+</script>
+{% endblock %}

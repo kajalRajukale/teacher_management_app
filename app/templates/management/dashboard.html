@@ -1,35 +1,63 @@
 {% extends "management/base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard - Teacher Management{% endblock %}
 
 {% block content %}
-<section class="hero-card">
-    <h2>Dashboard</h2>
-    <p>Overview of all core teaching resources and scheduled attendance entries.</p>
+<section class="hero-card" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white;">
+    <h2 style="margin-bottom: 8px;">Dashboard Overview</h2>
+    <p style="opacity: 0.9; margin: 0;">Real-time teacher tracking, geolocation verification, and attendance analytics.</p>
 </section>
 
+<h3 style="color: #475569; margin: 24px 0 12px 0; text-transform: uppercase; letter-spacing: 0.05em; font-size: 14px;">Today's Summary Statistics</h3>
 <section class="stats">
-    <article>
+    <article style="border-top: 4px solid #2757d7;">
         <span>{{ teacher_count }}</span>
-        <strong>Teachers</strong>
+        <strong>Total Teachers</strong>
     </article>
-    <article>
-        <span>{{ school_count }}</span>
-        <strong>Schools</strong>
+    <article style="border-top: 4px solid #10b981;">
+        <span class="status-present">{{ present_count }}</span>
+        <strong>Present Today</strong>
     </article>
-    <article>
-        <span>{{ course_count }}</span>
-        <strong>Courses</strong>
+    <article style="border-top: 4px solid #ef4444;">
+        <span class="status-absent">{{ absent_count }}</span>
+        <strong>Absent Today</strong>
     </article>
-    <article>
-        <span>{{ attendance_count }}</span>
-        <strong>Attendance entries</strong>
+    <article style="border-top: 4px solid #f59e0b;">
+        <span class="status-leave">{{ leave_count }}</span>
+        <strong>Leave Today</strong>
+    </article>
+    <article style="border-top: 4px solid #6366f1;">
+        <span class="status-cl">{{ cl_count }}</span>
+        <strong>CL Today</strong>
+    </article>
+    <article style="border-top: 4px solid #a855f7;">
+        <span class="status-half_day">{{ half_day_count }}</span>
+        <strong>Half Day Today</strong>
     </article>
 </section>
 
-<section class="card">
+<h3 style="color: #475569; margin: 32px 0 12px 0; text-transform: uppercase; letter-spacing: 0.05em; font-size: 14px;">Resource Counts</h3>
+<section class="stats" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+    <article>
+        <span style="color: #475569;">{{ school_count }}</span>
+        <strong>Schools Configured</strong>
+    </article>
+    <article>
+        <span style="color: #475569;">{{ course_count }}</span>
+        <strong>Courses Tracked</strong>
+    </article>
+    <article>
+        <span style="color: #475569;">{{ attendance_count }}</span>
+        <strong>All-Time Attendance Logs</strong>
+    </article>
+</section>
+
+<section class="card" style="margin-top: 32px;">
     <div class="section-header">
-        <h2>Current attendance plan</h2>
-        <a class="button" href="{% url 'attendance_create' %}">Add attendance</a>
+        <h2>Recent Attendance Records</h2>
+        <div>
+            <a class="button secondary" href="{% url 'attendance_list' %}">View Full Records</a>
+            <a class="button" href="{% url 'attendance_mark' %}" style="background: #10b981;">Mark Attendance</a>
+        </div>
     </div>
 
     {% if upcoming_attendances %}
@@ -38,27 +66,53 @@
                 <tr>
                     <th>Teacher</th>
                     <th>School</th>
-                    <th>Course</th>
-                    <th>Day</th>
+                    <th>Date</th>
                     <th>Time</th>
-                    <th>Room</th>
+                    <th>Status</th>
+                    <th>Location Verified</th>
+                    <th>Distance</th>
                 </tr>
             </thead>
             <tbody>
                 {% for attendance in upcoming_attendances %}
                     <tr>
-                        <td>{{ attendance.teacher.full_name }}</td>
+                        <td><strong>{{ attendance.teacher.full_name }}</strong></td>
                         <td>{{ attendance.school.name }}</td>
-                        <td>{{ attendance.course.name }}</td>
-                        <td>{{ attendance.get_weekday_display }}</td>
-                        <td>{{ attendance.start_time }} - {{ attendance.end_time }}</td>
-                        <td>{{ attendance.room|default:"-" }}</td>
+                        <td>{{ attendance.attendance_date }}</td>
+                        <td>{{ attendance.attendance_time|time:"H:i:s" }}</td>
+                        <td>
+                            {% if attendance.status == "PRESENT" %}
+                                <span class="badge badge-present">Present</span>
+                            {% elif attendance.status == "ABSENT" %}
+                                <span class="badge badge-absent">Absent</span>
+                            {% elif attendance.status == "LEAVE" %}
+                                <span class="badge badge-leave">Leave</span>
+                            {% elif attendance.status == "CL" %}
+                                <span class="badge badge-cl">CL (Casual Leave)</span>
+                            {% elif attendance.status == "HALF_DAY" %}
+                                <span class="badge badge-half_day">Half Day</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attendance.latitude and attendance.longitude %}
+                                <span style="font-family: monospace; font-size: 13px; color: #16a34a;">✔ GPS Locked</span>
+                            {% else %}
+                                <span style="color: #dc2626; font-size: 13px;">✘ No GPS</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attendance.distance_from_school is not None %}
+                                <span style="font-weight: 600; color: #4b5563;">{{ attendance.distance_from_school }}m</span>
+                            {% else %}
+                                <span style="color: #9ca3af;">-</span>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-        <p>No attendance entries yet.</p>
+        <p style="color: #64748b; text-align: center; padding: 20px 0;">No attendance logs found in the system.</p>
     {% endif %}
 </section>
 {% endblock %}

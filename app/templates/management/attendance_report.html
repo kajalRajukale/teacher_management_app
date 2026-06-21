@@ -1,0 +1,150 @@
+{% extends "management/base.html" %}
+{% block title %}Attendance Report{% endblock %}
+
+{% block content %}
+<section class="hero-card">
+    <div class="section-header">
+        <h2>Attendance Report</h2>
+        <a class="button" href="{% url 'attendance_create' %}">Add attendance</a>
+    </div>
+
+    <form method="get" class="report-filters">
+        <div class="form-row">
+            <label for="teacher">Teacher</label>
+            <select name="teacher" id="teacher">
+                <option value="">All Teachers</option>
+                {% for teacher in teachers %}
+                    <option value="{{ teacher.id }}" {% if selected_teacher == teacher.id|stringformat:"d" %}selected{% endif %}>
+                        {{ teacher.full_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="date_from">From Date</label>
+            <input type="date" name="date_from" id="date_from" value="{{ selected_date_from|default:'' }}">
+        </div>
+        <div class="form-row">
+            <label for="date_to">To Date</label>
+            <input type="date" name="date_to" id="date_to" value="{{ selected_date_to|default:'' }}">
+        </div>
+        <div class="form-row filter-buttons">
+            <button type="submit">Filter</button>
+            <a class="button secondary" href="{% url 'attendance_report' %}">Clear</a>
+        </div>
+    </form>
+</section>
+
+<section class="stats">
+    <article>
+        <span class="status-total">{{ total_count }}</span>
+        <strong>Total</strong>
+    </article>
+    <article>
+        <span class="status-present">{{ present_count }}</span>
+        <strong>Present</strong>
+    </article>
+    <article>
+        <span class="status-absent">{{ absent_count }}</span>
+        <strong>Absent</strong>
+    </article>
+    <article>
+        <span class="status-leave">{{ leave_count }}</span>
+        <strong>Leave</strong>
+    </article>
+    <article>
+        <span class="status-cl">{{ cl_count }}</span>
+        <strong>CL</strong>
+    </article>
+    <article>
+        <span class="status-half_day">{{ half_day_count }}</span>
+        <strong>Half Day</strong>
+    </article>
+</section>
+
+{% if teacher_summary %}
+<section class="card">
+    <h2>Teacher-wise Summary</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Teacher</th>
+                <th>Total</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Leave</th>
+                <th>CL</th>
+                <th>Half Day</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in teacher_summary %}
+                <tr>
+                    <td>{{ row.teacher__first_name }} {{ row.teacher__last_name }}</td>
+                    <td>{{ row.total }}</td>
+                    <td>{{ row.present }}</td>
+                    <td>{{ row.absent }}</td>
+                    <td>{{ row.leave }}</td>
+                    <td>{{ row.cl }}</td>
+                    <td>{{ row.half_day }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+<section class="card">
+    <h2>Attendance Records</h2>
+
+    {% if attendances %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    <th>School</th>
+                    <th>Course</th>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th>Room</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attendance in attendances %}
+                    <tr>
+                        <td>{{ attendance.teacher.full_name }}</td>
+                        <td>{{ attendance.school.name }}</td>
+                        <td>{{ attendance.course.name }}</td>
+                        <td>{{ attendance.attendance_date }}</td>
+                        <td>{{ attendance.get_weekday_display }}</td>
+                        <td>
+                            {% if attendance.status == "PRESENT" %}
+                                <span class="badge badge-present">Present</span>
+                            {% elif attendance.status == "ABSENT" %}
+                                <span class="badge badge-absent">Absent</span>
+                            {% elif attendance.status == "LEAVE" %}
+                                <span class="badge badge-leave">Leave</span>
+                            {% elif attendance.status == "CL" %}
+                                <span class="badge badge-cl">CL</span>
+                            {% elif attendance.status == "HALF_DAY" %}
+                                <span class="badge badge-half_day">Half Day</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ attendance.start_time }} - {{ attendance.end_time }}</td>
+                        <td>{{ attendance.room|default:"-" }}</td>
+                        <td class="right">
+                            <a href="{% url 'attendance_update' attendance.id %}">Edit</a>
+                            <a class="danger" href="{% url 'attendance_delete' attendance.id %}">Delete</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No attendance records found.</p>
+    {% endif %}
+</section>
+{% endblock %}

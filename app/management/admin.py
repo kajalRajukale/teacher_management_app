@@ -1,11 +1,18 @@
 from django.contrib import admin
-
 from .models import Attendance, Course, School, Teacher
 
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ("name", "city", "email", "phone")
+    list_display = (
+        "name", 
+        "city", 
+        "email", 
+        "phone", 
+        "school_latitude", 
+        "school_longitude", 
+        "allowed_radius_meters"
+    )
     search_fields = ("name", "city", "address", "email")
 
 
@@ -17,8 +24,8 @@ class CourseAdmin(admin.ModelAdmin):
 
 @admin.register(Teacher)
 class TeacherAdmin(admin.ModelAdmin):
-    list_display = ("last_name", "first_name", "email", "phone", "active")
-    list_filter = ("active",)
+    list_display = ("last_name", "first_name", "email", "phone", "user", "school", "active")
+    list_filter = ("active", "school")
     search_fields = ("first_name", "last_name", "email", "qualification")
 
 
@@ -27,17 +34,29 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_display = (
         "teacher",
         "school",
-        "course",
-        "weekday",
-        "start_time",
-        "end_time",
-        "room",
+        "status",
+        "attendance_date",
+        "attendance_time",
+        "location",
+        "latitude",
+        "longitude",
+        "distance_from_school",
+        "verification_method",
+        "created_at",
     )
-    list_filter = ("weekday", "school", "course")
+
+    list_filter = (
+        "status",
+        "attendance_date",
+        "school",
+        "verification_method",
+    )
+
     search_fields = (
         "teacher__first_name",
         "teacher__last_name",
         "school__name",
-        "course__name",
-        "room",
+        "location",
     )
+
+    readonly_fields = ("created_at", "marked_at")

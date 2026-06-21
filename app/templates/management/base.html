@@ -3,22 +3,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Teacher Management{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body>
     <header class="topbar">
         <div>
-            <h1>Teacher Management App, build by Kajal</h1>
-            <p>Schools, courses, teachers and attendance planning</p>
+            <h1><a href="{% url 'dashboard' %}" style="color: white; text-decoration: none;">Teacher Management App</a></h1>
+            <p>Schools, courses, teachers and geo-fenced attendance</p>
         </div>
-        <nav>
+        <nav style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <a href="{% url 'dashboard' %}">Dashboard</a>
-            <a href="{% url 'teacher_list' %}">Teachers</a>
-            <a href="{% url 'school_list' %}">Schools</a>
-            <a href="{% url 'course_list' %}">Courses</a>
-            <a href="{% url 'attendance_list' %}">Attendance</a>
-            <a href="/admin/">Admin</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'attendance_mark' %}" style="background: #10b981; color: white; padding: 10px 14px; border-radius: 999px;">Mark Attendance</a>
+                <a href="{% url 'attendance_list' %}">Records</a>
+                <a href="{% url 'teacher_list' %}">Teachers</a>
+                <a href="{% url 'school_list' %}">Schools</a>
+                <a href="{% url 'course_list' %}">Courses</a>
+                <a href="{% url 'attendance_report' %}">Report</a>
+                <a href="/admin/">Admin</a>
+                <span style="color: #cbd5e1; font-weight: 500; margin-left: 10px; font-size: 14px;">Hi, {{ user.username }}</span>
+                <form action="{% url 'logout' %}" method="post" style="display: inline; margin: 0; padding: 0;">
+                    {% csrf_token %}
+                    <button type="submit" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: none; padding: 10px 16px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: 14px;">Logout</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" style="background: #2757d7; color: white; padding: 10px 18px; border-radius: 999px;">Login</a>
+            {% endif %}
         </nav>
     </header>
 

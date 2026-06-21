@@ -198,6 +198,74 @@ tr:last-child td {
     background: #e2e8f0;
 }
 
+.badge-present {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.badge-absent {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.badge-leave {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.badge-cl {
+    color: #1e40af;
+    background: #dbeafe;
+}
+
+.badge-half_day {
+    color: #6b21a8;
+    background: #f3e8ff;
+}
+
+.status-present {
+    color: #166534;
+}
+
+.status-absent {
+    color: #991b1b;
+}
+
+.status-leave {
+    color: #92400e;
+}
+
+.status-cl {
+    color: #1e40af;
+}
+
+.status-half_day {
+    color: #6b21a8;
+}
+
+.status-total {
+    color: #2757d7;
+}
+
+.report-filters {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.report-filters .form-row {
+    display: grid;
+    gap: 6px;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
 .form {
     display: grid;
     gap: 18px;
