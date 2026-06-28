@@ -81,15 +81,15 @@
                         <td>{{ attendance.attendance_date }}</td>
                         <td>{{ attendance.attendance_time|time:"H:i:s" }}</td>
                         <td>
-                            {% if attendance.status == "PRESENT" %}
+                            {% if attendance.attendance_status == "PRESENT" %}
                                 <span class="badge badge-present">Present</span>
-                            {% elif attendance.status == "ABSENT" %}
+                            {% elif attendance.attendance_status == "ABSENT" %}
                                 <span class="badge badge-absent">Absent</span>
-                            {% elif attendance.status == "LEAVE" %}
+                            {% elif attendance.attendance_status == "LEAVE" %}
                                 <span class="badge badge-leave">Leave</span>
-                            {% elif attendance.status == "CL" %}
+                            {% elif attendance.attendance_status == "CL" %}
                                 <span class="badge badge-cl">CL (Casual Leave)</span>
-                            {% elif attendance.status == "HALF_DAY" %}
+                            {% elif attendance.attendance_status == "HALF_DAY" %}
                                 <span class="badge badge-half_day">Half Day</span>
                             {% endif %}
                         </td>

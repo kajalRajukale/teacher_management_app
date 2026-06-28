@@ -2,12 +2,15 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import date
-from management.models import School, Teacher, Attendance
+from management.models import School, Teacher, Attendance, SchoolSettings
 from management.utils import haversine
 
 
 class GeofenceTestCase(TestCase):
     def setUp(self):
+        # Delete default SchoolSettings created by migrations to avoid interfering with school-specific tests
+        SchoolSettings.objects.all().delete()
+
         # Create a test school in Shivajinagar, Pune
         self.school = School.objects.create(
             name="Greenwood High",
@@ -47,7 +50,8 @@ class GeofenceTestCase(TestCase):
             teacher=self.teacher,
             school=self.school,
             attendance_date=test_date,
-            status="PRESENT",
+            attendance_status="PRESENT",
+            standard_class="10th Grade",
             latitude=18.52043,
             longitude=73.856743,
             distance_from_school=0
@@ -55,7 +59,8 @@ class GeofenceTestCase(TestCase):
         
         # Ensure weekday is auto-calculated and matches 'SAT' (Saturday)
         self.assertEqual(attendance.weekday, "SAT")
-        self.assertEqual(attendance.get_status_display(), "Present")
+        self.assertEqual(attendance.get_attendance_status_display(), "Present")
+        self.assertEqual(attendance.standard_class, "10th Grade")
         self.assertIsNotNone(attendance.created_at)
         self.assertIsNotNone(attendance.attendance_time)
 
@@ -66,13 +71,15 @@ class GeofenceTestCase(TestCase):
         response = self.client.post("/attendances/mark/", {
             "status": "PRESENT",
             "latitude": "18.52045",
-            "longitude": "73.856750"
+            "longitude": "73.856750",
+            "standard_class": "10th Grade"
         })
         
         # Assert database entry was created
         attendance = Attendance.objects.filter(teacher=self.teacher).first()
         self.assertIsNotNone(attendance)
-        self.assertEqual(attendance.status, "PRESENT")
+        self.assertEqual(attendance.attendance_status, "PRESENT")
+        self.assertEqual(attendance.standard_class, "10th Grade")
         self.assertLess(attendance.distance_from_school, 10)
         self.assertContains(response, "Attendance marked")
 
@@ -83,13 +90,14 @@ class GeofenceTestCase(TestCase):
         response = self.client.post("/attendances/mark/", {
             "status": "PRESENT",
             "latitude": "18.5793",
-            "longitude": "73.9089"
+            "longitude": "73.9089",
+            "standard_class": "10th Grade"
         })
         
         # Assert rejected and database entry not created
         attendance = Attendance.objects.filter(teacher=self.teacher).first()
-        self.assertNil = self.assertIsNone(attendance)
-        self.assertContains(response, "You are outside the school premises. Attendance cannot be marked.")
+        self.assertIsNone(attendance)
+        self.assertContains(response, "You are outside the school campus. Attendance can only be marked when you are near the school.")
 
     def test_mark_attendance_missing_coords(self):
         self.client.login(username="teacher_john", password="password123")
@@ -97,7 +105,8 @@ class GeofenceTestCase(TestCase):
         response = self.client.post("/attendances/mark/", {
             "status": "PRESENT",
             "latitude": "",
-            "longitude": ""
+            "longitude": "",
+            "standard_class": "10th Grade"
         })
         
         attendance = Attendance.objects.filter(teacher=self.teacher).first()
@@ -110,7 +119,8 @@ class GeofenceTestCase(TestCase):
             "teacher_id": self.teacher.id,
             "school_id": self.school.id,
             "latitude": 18.52045,
-            "longitude": 73.856750
+            "longitude": 73.856750,
+            "standard_class": "10th Grade"
         }
         
         response = self.client.post(
@@ -121,9 +131,11 @@ class GeofenceTestCase(TestCase):
         self.assertEqual(response.status_code, 201)
         data = json.loads(response.content)
         self.assertEqual(data["status"], "PRESENT")
+        self.assertEqual(data["standard_class"], "10th Grade")
         
         attendance = Attendance.objects.filter(teacher=self.teacher).first()
         self.assertIsNotNone(attendance)
+        self.assertEqual(attendance.standard_class, "10th Grade")
 
     def test_api_attendance_create_outside(self):
         import json
@@ -131,7 +143,8 @@ class GeofenceTestCase(TestCase):
             "teacher_id": self.teacher.id,
             "school_id": self.school.id,
             "latitude": 18.5793,
-            "longitude": 73.9089
+            "longitude": 73.9089,
+            "standard_class": "10th Grade"
         }
         
         response = self.client.post(
@@ -141,7 +154,7 @@ class GeofenceTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 403)
         data = json.loads(response.content)
-        self.assertEqual(data["error"], "You are outside the school premises. Attendance cannot be marked.")
+        self.assertEqual(data["error"], "You are outside the school campus. Attendance can only be marked when you are near the school.")
         
         attendance = Attendance.objects.filter(teacher=self.teacher).first()
         self.assertIsNone(attendance)
@@ -150,7 +163,8 @@ class GeofenceTestCase(TestCase):
         import json
         payload = {
             "teacher_id": self.teacher.id,
-            "school_id": self.school.id
+            "school_id": self.school.id,
+            "standard_class": "10th Grade"
         }
         
         response = self.client.post(

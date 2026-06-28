@@ -48,7 +48,8 @@ class AttendanceForm(forms.ModelForm):
             "course", 
             "attendance_date", 
             "attendance_time", 
-            "status", 
+            "attendance_status", 
+            "standard_class",
             "weekday", 
             "start_time", 
             "end_time", 
@@ -60,9 +61,10 @@ class AttendanceForm(forms.ModelForm):
             "distance_from_school"
         ]
         widgets = {
-            "status": forms.Select(attrs={"class": "status-select"}),
+            "attendance_status": forms.Select(attrs={"class": "status-select"}),
             "attendance_date": forms.DateInput(attrs={"type": "date"}),
             "attendance_time": forms.TimeInput(attrs={"type": "time"}),
+            "standard_class": forms.TextInput(attrs={"placeholder": "e.g. 10th Grade"}),
         }
 
     def clean(self):
@@ -89,11 +91,17 @@ class AttendanceForm(forms.ModelForm):
 class TeacherAttendanceForm(forms.ModelForm):
     """
     Simplified, mobile-friendly attendance mark form used by teachers.
-    Contains ONLY the status field as requested.
+    Contains teacher and standard_class fields.
     """
     class Meta:
         model = Attendance
-        fields = ["status"]
+        fields = ["teacher", "standard_class"]
         widgets = {
-            "status": forms.Select(attrs={"class": "status-select"}),
+            "standard_class": forms.TextInput(attrs={
+                "placeholder": "e.g. 10th Grade, Class A",
+                "style": "padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 15px; width: 100%;"
+            }),
+            "teacher": forms.Select(attrs={
+                "style": "padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 15px; width: 100%;"
+            }),
         }

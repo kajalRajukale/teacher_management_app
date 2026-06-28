@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Attendance, Course, School, Teacher
+from .models import Attendance, Course, School, Teacher, SchoolSettings
+
+
+@admin.register(SchoolSettings)
+class SchoolSettingsAdmin(admin.ModelAdmin):
+    list_display = ("school_latitude", "school_longitude", "allowed_radius")
 
 
 @admin.register(School)
@@ -34,7 +39,8 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_display = (
         "teacher",
         "school",
-        "status",
+        "attendance_status",
+        "standard_class",
         "attendance_date",
         "attendance_time",
         "location",
@@ -46,7 +52,7 @@ class AttendanceAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        "status",
+        "attendance_status",
         "attendance_date",
         "school",
         "verification_method",
@@ -60,3 +66,33 @@ class AttendanceAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = ("created_at", "marked_at")
+    actions = ["export_to_csv"]
+
+    @admin.action(description="Export selected attendance records to CSV")
+    def export_to_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="attendance_export.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            "Teacher", "School", "Date", "Time", "Status", 
+            "Latitude", "Longitude", "Distance (m)", "Location", "Notes"
+        ])
+        
+        for att in queryset.select_related("teacher", "school"):
+            writer.writerow([
+                att.teacher.full_name,
+                att.school.name,
+                att.attendance_date,
+                att.attendance_time.strftime("%H:%M:%S") if att.attendance_time else "",
+                att.get_attendance_status_display(),
+                att.latitude or "",
+                att.longitude or "",
+                att.distance_from_school or "",
+                att.location or "",
+                att.notes,
+            ])
+        return response

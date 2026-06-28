@@ -1,6 +1,34 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.validators import MaxValueValidator, MinValueValidator
+
+
+class SchoolSettings(models.Model):
+    school_latitude = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)],
+        help_text="Latitude of the school (-90.0 to 90.0)"
+    )
+    school_longitude = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)],
+        help_text="Longitude of the school (-180.0 to 180.0)"
+    )
+    allowed_radius = models.IntegerField(
+        default=100,
+        validators=[MinValueValidator(1)],
+        help_text="Allowed attendance radius in meters"
+    )
+
+    class Meta:
+        verbose_name = "School Settings"
+        verbose_name_plural = "School Settings"
+
+    def __str__(self):
+        return f"School Settings (Lat: {self.school_latitude}, Lon: {self.school_longitude}, Radius: {self.allowed_radius}m)"
 
 
 class School(models.Model):
@@ -9,9 +37,21 @@ class School(models.Model):
     address = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
-    school_latitude = models.FloatField(null=True, blank=True)
-    school_longitude = models.FloatField(null=True, blank=True)
-    allowed_radius_meters = models.IntegerField(default=100, help_text="Allowed radius in meters")
+    school_latitude = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
+    )
+    school_longitude = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
+    allowed_radius_meters = models.IntegerField(
+        default=100,
+        validators=[MinValueValidator(1)],
+        help_text="Allowed radius in meters"
+    )
     
     class Meta:
         ordering = ["name"]
@@ -87,7 +127,8 @@ class Attendance(models.Model):
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name='attendances')
 
     attendance_date = models.DateField(default=timezone.now)
-    status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.PRESENT)
+    attendance_status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.PRESENT)
+    standard_class = models.CharField(max_length=100, blank=True, null=True, help_text="Standard/Class (STD)")
 
     weekday = models.CharField(max_length=20, blank=True, choices=WEEKDAY_CHOICES)
     start_time = models.TimeField(null=True, blank=True)
@@ -125,4 +166,4 @@ class Attendance(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.teacher} - {self.attendance_date}"
+        return f"{self.teacher} - {self.attendance_date}"

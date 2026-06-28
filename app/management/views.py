@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import math
+import logging
 from collections import Counter
 from datetime import date, timedelta
 
@@ -14,8 +15,10 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 
 from .forms import AttendanceForm, CourseForm, SchoolForm, TeacherForm, TeacherAttendanceForm
-from .models import Attendance, Course, School, Teacher
+from .models import Attendance, Course, School, Teacher, SchoolSettings
 from .utils import haversine
+
+logger = logging.getLogger(__name__)
 
 
 def dashboard(request):
@@ -28,11 +31,11 @@ def dashboard(request):
     today_attendances = Attendance.objects.filter(attendance_date=today)
     
     total_teachers = Teacher.objects.filter(active=True).count()
-    present_count = today_attendances.filter(status="PRESENT").count()
-    absent_count = today_attendances.filter(status="ABSENT").count()
-    leave_count = today_attendances.filter(status="LEAVE").count()
-    cl_count = today_attendances.filter(status="CL").count()
-    half_day_count = today_attendances.filter(status="HALF_DAY").count()
+    present_count = today_attendances.filter(attendance_status="PRESENT").count()
+    absent_count = today_attendances.filter(attendance_status="ABSENT").count()
+    leave_count = today_attendances.filter(attendance_status="LEAVE").count()
+    cl_count = today_attendances.filter(attendance_status="CL").count()
+    half_day_count = today_attendances.filter(attendance_status="HALF_DAY").count()
 
     return render(
         request,
@@ -79,8 +82,25 @@ def attendance_mark(request):
         teachers = Teacher.objects.filter(active=True)
         schools = School.objects.all()
 
+    # Pre-resolve school location and radius for the teacher (for frontend validation)
+    global_settings = SchoolSettings.objects.first()
+    
+    if is_teacher and current_teacher.school:
+        s_lat = current_teacher.school.school_latitude
+        s_lng = current_teacher.school.school_longitude
+        s_radius = current_teacher.school.allowed_radius_meters
+    else:
+        s_lat, s_lng, s_radius = None, None, None
+        
+    # Global settings overrides if configured
+    if global_settings and global_settings.school_latitude is not None and global_settings.school_longitude is not None:
+        s_lat = global_settings.school_latitude
+        s_lng = global_settings.school_longitude
+        s_radius = global_settings.allowed_radius
+
     if request.method == "POST":
-        status = request.POST.get("status", "PRESENT")
+        status = "PRESENT"  # Always mark as PRESENT from the simplified mark page
+        standard_class = request.POST.get("standard_class", "")
         notes = request.POST.get("notes", "")
         latitude = request.POST.get("latitude")
         longitude = request.POST.get("longitude")
@@ -102,13 +122,30 @@ def attendance_mark(request):
                 "schools": schools,
                 "is_teacher": is_teacher,
                 "today": today,
+                "school_latitude": s_lat,
+                "school_longitude": s_lng,
+                "allowed_radius": s_radius,
             })
 
         lat_val = float(latitude) if latitude else None
         lng_val = float(longitude) if longitude else None
 
-        # If school is not pre-assigned, attempt to resolve closest school using GPS
-        if not school:
+        # Determine school coordinates and radius
+        school_lat, school_lng, allowed_radius = None, None, None
+        
+        # 1. First check global settings
+        if global_settings and global_settings.school_latitude is not None and global_settings.school_longitude is not None:
+            school_lat = global_settings.school_latitude
+            school_lng = global_settings.school_longitude
+            allowed_radius = global_settings.allowed_radius
+        # 2. Then check specific school
+        elif school:
+            school_lat = school.school_latitude
+            school_lng = school.school_longitude
+            allowed_radius = school.allowed_radius_meters
+
+        # If school is not pre-assigned and not in global settings, attempt to resolve closest school using GPS
+        if not school_lat or not school_lng:
             if lat_val and lng_val:
                 closest_school = None
                 min_dist = float('inf')
@@ -118,15 +155,23 @@ def attendance_mark(request):
                         if dist < min_dist:
                             min_dist = dist
                             closest_school = s
-                school = closest_school
+                if closest_school:
+                    school = closest_school
+                    school_lat = closest_school.school_latitude
+                    school_lng = closest_school.school_longitude
+                    allowed_radius = closest_school.allowed_radius_meters
             
-            if not school:
+            if not school_lat or not school_lng:
+                logger.warning(f"Failed attendance attempt: School location not configured. Teacher {teacher.full_name}")
                 return render(request, "management/attendance_mark.html", {
-                    "error": "No school could be identified. Please configure your school location first.",
+                    "error": "School location has not been configured. Please contact the administrator.",
                     "teachers": teachers,
                     "schools": schools,
                     "is_teacher": is_teacher,
                     "today": today,
+                    "school_latitude": s_lat,
+                    "school_longitude": s_lng,
+                    "allowed_radius": s_radius,
                 })
 
         # Check if already marked today
@@ -140,78 +185,97 @@ def attendance_mark(request):
                 "schools": schools,
                 "is_teacher": is_teacher,
                 "today": today,
+                "school_latitude": s_lat,
+                "school_longitude": s_lng,
+                "allowed_radius": s_radius,
             })
 
-        # Verify GPS coordinates
-        teacher_lat = lat_val
-        teacher_lon = lng_val
-        school_lat = school.school_latitude if school else None
-        school_lon = school.school_longitude if school else None
-
-        if teacher_lat is None or teacher_lon is None:
+        # For PRESENT, we strictly enforce the GPS check
+        distance = None
+        if lat_val is None or lng_val is None:
             return render(request, "management/attendance_mark.html", {
                 "error": "GPS coordinates are required to submit attendance.",
                 "teachers": teachers,
                 "schools": schools,
                 "is_teacher": is_teacher,
                 "today": today,
+                "school_latitude": s_lat,
+                "school_longitude": s_lng,
+                "allowed_radius": s_radius,
             })
-
-        if school_lat is None or school_lon is None:
+        
+        # Validate coordinates are within valid range
+        if not (-90 <= lat_val <= 90) or not (-180 <= lng_val <= 180):
             return render(request, "management/attendance_mark.html", {
-                "error": f"School '{school.name}' coordinates are not configured. Cannot verify geo-fence.",
+                "error": "Invalid GPS coordinates structure.",
                 "teachers": teachers,
                 "schools": schools,
                 "is_teacher": is_teacher,
                 "today": today,
+                "school_latitude": s_lat,
+                "school_longitude": s_lng,
+                "allowed_radius": s_radius,
             })
 
-        distance = haversine(teacher_lat, teacher_lon, school_lat, school_lon)
-
-        # Print detailed debug logs as requested
-        print(f"Teacher Location: {teacher_lat}, {teacher_lon}")
-        print(f"School Location: {school_lat}, {school_lon}")
+        distance = haversine(lat_val, lng_val, school_lat, school_lng)
+        
+        # Debug logs
+        print(f"Teacher Location: {lat_val}, {lng_val}")
+        print(f"School Location: {school_lat}, {school_lng}")
         print(f"Calculated Distance: {distance} meters")
 
-        allowed_radius = school.allowed_radius_meters if school.allowed_radius_meters is not None else 100
-
-        if distance > allowed_radius:
+        if distance is None or distance > allowed_radius:
+            # Log failed attempt
+            logger.warning(
+                f"Failed attendance attempt: Teacher {teacher.full_name} (ID: {teacher.id}) "
+                f"tried to mark '{status}' from outside school premises. "
+                f"Teacher Location: ({lat_val}, {lng_val}), School Location: ({school_lat}, {school_lng}), "
+                f"Distance: {distance if distance is not None else 'N/A'}m, Allowed Radius: {allowed_radius}m"
+            )
             return render(request, "management/attendance_mark.html", {
-                "error": "You are outside the school premises. Attendance cannot be marked.",
+                "error": "You are outside the school campus. Attendance can only be marked when you are near the school.",
                 "teachers": teachers,
                 "schools": schools,
                 "is_teacher": is_teacher,
                 "today": today,
-                "distance": int(distance),
+                "distance": int(distance) if distance is not None else None,
                 "max_distance": allowed_radius,
+                "school_latitude": s_lat,
+                "school_longitude": s_lng,
+                "allowed_radius": s_radius,
             })
 
-        # Save status as Present (requirement 5)
-        status = "PRESENT"
-
         # Save location info
-        location_desc = f"GPS: {teacher_lat:.6f}, {teacher_lon:.6f}"
+        location_desc = f"GPS: {lat_val:.6f}, {lng_val:.6f}"
+
+        # Default school fallback if none resolved
+        if not school:
+            school = School.objects.first()
 
         attendance = Attendance.objects.create(
             teacher=teacher,
             school=school,
             attendance_date=today,
             attendance_time=timezone.now().time(),
-            status=status,
+            attendance_status=status,
+            standard_class=standard_class,
             notes=notes,
-            latitude=teacher_lat,
-            longitude=teacher_lon,
+            latitude=lat_val,
+            longitude=lng_val,
             location=location_desc,
             distance_from_school=distance,
             created_at=timezone.now(),
         )
 
         return render(request, "management/attendance_mark.html", {
-            "success": f"Attendance marked: '{attendance.get_status_display()}' at {school.name}.",
+            "success": f"Attendance marked: '{attendance.get_attendance_status_display()}' at {school.name}.",
             "teachers": teachers,
             "schools": schools,
             "is_teacher": is_teacher,
             "today": today,
+            "school_latitude": s_lat,
+            "school_longitude": s_lng,
+            "allowed_radius": s_radius,
         })
 
     return render(request, "management/attendance_mark.html", {
@@ -219,6 +283,9 @@ def attendance_mark(request):
         "schools": schools,
         "is_teacher": is_teacher,
         "today": today,
+        "school_latitude": s_lat,
+        "school_longitude": s_lng,
+        "allowed_radius": s_radius,
     })
 
 
@@ -242,7 +309,7 @@ def attendance_list(request):
     if school_id:
         attendances = attendances.filter(school_id=school_id)
     if status:
-        attendances = attendances.filter(status=status)
+        attendances = attendances.filter(attendance_status=status)
     if date_filter:
         attendances = attendances.filter(attendance_date=date_filter)
 
@@ -293,11 +360,11 @@ def attendance_history(request):
         .values("attendance_date__year", "attendance_date__month")
         .annotate(
             total=Count("id"),
-            present=Count("id", filter=Q(status="PRESENT")),
-            absent=Count("id", filter=Q(status="ABSENT")),
-            leave=Count("id", filter=Q(status="LEAVE")),
-            cl=Count("id", filter=Q(status="CL")),
-            half_day=Count("id", filter=Q(status="HALF_DAY")),
+            present=Count("id", filter=Q(attendance_status="PRESENT")),
+            absent=Count("id", filter=Q(attendance_status="ABSENT")),
+            leave=Count("id", filter=Q(attendance_status="LEAVE")),
+            cl=Count("id", filter=Q(attendance_status="CL")),
+            half_day=Count("id", filter=Q(attendance_status="HALF_DAY")),
         )
         .order_by("-attendance_date__year", "-attendance_date__month")
     )
@@ -312,11 +379,11 @@ def attendance_history(request):
         "selected_date_to": date_to,
         "selected_month": month,
         "total_count": attendances.count(),
-        "present_count": attendances.filter(status="PRESENT").count(),
-        "absent_count": attendances.filter(status="ABSENT").count(),
-        "leave_count": attendances.filter(status="LEAVE").count(),
-        "cl_count": attendances.filter(status="CL").count(),
-        "half_day_count": attendances.filter(status="HALF_DAY").count(),
+        "present_count": attendances.filter(attendance_status="PRESENT").count(),
+        "absent_count": attendances.filter(attendance_status="ABSENT").count(),
+        "leave_count": attendances.filter(attendance_status="LEAVE").count(),
+        "cl_count": attendances.filter(attendance_status="CL").count(),
+        "half_day_count": attendances.filter(attendance_status="HALF_DAY").count(),
     })
 
 
@@ -341,7 +408,7 @@ def attendance_export(request):
 
         writer = csv.writer(response)
         writer.writerow([
-            "Teacher", "School", "Date", "Time", "Status", "Created At",
+            "Teacher", "School", "Date", "Time", "Status", "Standard/Class", "Created At",
             "Location", "Latitude", "Longitude", "Distance (m)", "Notes",
         ])
         for att in attendances:
@@ -350,7 +417,8 @@ def attendance_export(request):
                 att.school.name,
                 att.attendance_date,
                 att.attendance_time.strftime("%H:%M:%S") if att.attendance_time else "",
-                att.get_status_display(),
+                att.get_attendance_status_display(),
+                att.standard_class or "",
                 att.created_at.strftime("%Y-%m-%d %H:%M:%S") if att.created_at else "",
                 att.location or "",
                 att.latitude or "",
@@ -379,23 +447,23 @@ def attendance_report(request):
     if date_to:
         attendances = attendances.filter(attendance_date__lte=date_to)
 
-    status_summary = attendances.values("status").annotate(count=Count("id"))
+    status_summary = attendances.values("attendance_status").annotate(count=Count("id"))
     teacher_summary = (
         attendances.values("teacher__first_name", "teacher__last_name")
         .annotate(
             total=Count("id"),
-            present=Count("id", filter=Q(status="PRESENT")),
-            absent=Count("id", filter=Q(status="ABSENT")),
-            leave=Count("id", filter=Q(status="LEAVE")),
-            cl=Count("id", filter=Q(status="CL")),
-            half_day=Count("id", filter=Q(status="HALF_DAY")),
+            present=Count("id", filter=Q(attendance_status="PRESENT")),
+            absent=Count("id", filter=Q(attendance_status="ABSENT")),
+            leave=Count("id", filter=Q(attendance_status="LEAVE")),
+            cl=Count("id", filter=Q(attendance_status="CL")),
+            half_day=Count("id", filter=Q(attendance_status="HALF_DAY")),
         )
         .order_by("teacher__last_name")
     )
 
     status_map = dict(Attendance.StatusChoices.choices)
     status_summary_list = [
-        {"status": s["status"], "label": status_map.get(s["status"], s["status"]), "count": s["count"]}
+        {"status": s["attendance_status"], "label": status_map.get(s["attendance_status"], s["attendance_status"]), "count": s["count"]}
         for s in status_summary
     ]
 
@@ -411,11 +479,11 @@ def attendance_report(request):
             "selected_date_from": date_from,
             "selected_date_to": date_to,
             "total_count": attendances.count(),
-            "present_count": attendances.filter(status="PRESENT").count(),
-            "absent_count": attendances.filter(status="ABSENT").count(),
-            "leave_count": attendances.filter(status="LEAVE").count(),
-            "cl_count": attendances.filter(status="CL").count(),
-            "half_day_count": attendances.filter(status="HALF_DAY").count(),
+            "present_count": attendances.filter(attendance_status="PRESENT").count(),
+            "absent_count": attendances.filter(attendance_status="ABSENT").count(),
+            "leave_count": attendances.filter(attendance_status="LEAVE").count(),
+            "cl_count": attendances.filter(attendance_status="CL").count(),
+            "half_day_count": attendances.filter(attendance_status="HALF_DAY").count(),
         },
     )
 
@@ -638,8 +706,9 @@ def attendance_to_dict(attendance):
         "course": course_to_dict(attendance.course) if attendance.course else None,
         "attendance_date": attendance.attendance_date.isoformat(),
         "attendance_time": attendance.attendance_time.isoformat() if attendance.attendance_time else None,
-        "status": attendance.status,
-        "status_display": attendance.get_status_display(),
+        "status": attendance.attendance_status,
+        "status_display": attendance.get_attendance_status_display(),
+        "standard_class": attendance.standard_class,
         "location": attendance.location,
         "latitude": float(attendance.latitude) if attendance.latitude else None,
         "longitude": float(attendance.longitude) if attendance.longitude else None,
@@ -763,7 +832,8 @@ def api_attendance_create(request):
     teacher = get_object_or_404(Teacher, pk=payload["teacher_id"])
     school = get_object_or_404(School, pk=payload["school_id"])
 
-    status = payload.get("status", "PRESENT")
+    status = payload.get("status") or payload.get("attendance_status") or "PRESENT"
+    standard_class = payload.get("standard_class", "")
     valid_statuses = [s[0] for s in Attendance.StatusChoices.choices]
     if status not in valid_statuses:
         return JsonResponse(
@@ -785,49 +855,83 @@ def api_attendance_create(request):
     latitude = payload.get("latitude")
     longitude = payload.get("longitude")
 
-    if latitude is None or longitude is None:
-        return JsonResponse({"error": "GPS coordinates are required to mark attendance."}, status=400)
+    # Determine school coordinates and radius
+    global_settings = SchoolSettings.objects.first()
+    
+    school_lat, school_lng, allowed_radius = None, None, None
+    if global_settings and global_settings.school_latitude is not None and global_settings.school_longitude is not None:
+        school_lat = global_settings.school_latitude
+        school_lng = global_settings.school_longitude
+        allowed_radius = global_settings.allowed_radius
+    else:
+        school_lat = school.school_latitude
+        school_lng = school.school_longitude
+        allowed_radius = school.allowed_radius_meters
 
-    try:
-        teacher_lat = float(latitude)
-        teacher_lon = float(longitude)
-    except (ValueError, TypeError):
-        return JsonResponse({"error": "Invalid GPS coordinates structure."}, status=400)
+    if not school_lat or not school_lng:
+        logger.warning(f"Failed API attendance attempt: School location not configured. Teacher {teacher.full_name}")
+        return JsonResponse({"error": "School location has not been configured. Please contact the administrator."}, status=400)
 
-    school_lat = school.school_latitude
-    school_lon = school.school_longitude
+    distance = None
+    if status in ["PRESENT", "HALF_DAY"]:
+        if latitude is None or longitude is None:
+            return JsonResponse({"error": "GPS coordinates are required to mark attendance."}, status=400)
 
-    if school_lat is None or school_lon is None:
-        return JsonResponse({"error": f"School '{school.name}' coordinates are not configured. Cannot verify geo-fence."}, status=400)
+        try:
+            teacher_lat = float(latitude)
+            teacher_lon = float(longitude)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid GPS coordinates structure."}, status=400)
 
-    distance = haversine(teacher_lat, teacher_lon, school_lat, school_lon)
+        if not (-90 <= teacher_lat <= 90) or not (-180 <= teacher_lon <= 180):
+            return JsonResponse({"error": "Invalid GPS coordinates structure."}, status=400)
 
-    # Print detailed debug logs as requested
-    print(f"Teacher Location: {teacher_lat}, {teacher_lon}")
-    print(f"School Location: {school_lat}, {school_lon}")
-    print(f"Calculated Distance: {distance} meters")
+        distance = haversine(teacher_lat, teacher_lon, school_lat, school_lng)
 
-    allowed_radius = school.allowed_radius_meters if school.allowed_radius_meters is not None else 100
+        # Print detailed debug logs
+        print(f"Teacher Location: {teacher_lat}, {teacher_lon}")
+        print(f"School Location: {school_lat}, {school_lng}")
+        print(f"Calculated Distance: {distance} meters")
 
-    if distance > allowed_radius:
-        return JsonResponse(
-            {"error": "You are outside the school premises. Attendance cannot be marked."},
-            status=403,
-        )
+        if distance is None or distance > allowed_radius:
+            logger.warning(
+                f"Failed API attendance attempt: Teacher {teacher.full_name} (ID: {teacher.id}) "
+                f"tried to mark '{status}' from outside school premises. "
+                f"Teacher Location: ({teacher_lat}, {teacher_lon}), School Location: ({school_lat}, {school_lng}), "
+                f"Distance: {distance if distance is not None else 'N/A'}m, Allowed Radius: {allowed_radius}m"
+            )
+            return JsonResponse(
+                {"error": "You are outside the school campus. Attendance can only be marked when you are near the school."},
+                status=403,
+            )
+    else:
+        # ABSENT, LEAVE, CL
+        if latitude is not None and longitude is not None:
+            try:
+                teacher_lat = float(latitude)
+                teacher_lon = float(longitude)
+                if (-90 <= teacher_lat <= 90) and (-180 <= teacher_lon <= 180):
+                    distance = haversine(teacher_lat, teacher_lon, school_lat, school_lng)
+            except (ValueError, TypeError):
+                pass
 
-    # Force status to PRESENT when geo-fencing check succeeds
-    status = "PRESENT"
-    location_desc = f"GPS: {teacher_lat:.6f}, {teacher_lon:.6f}"
+    location_desc = None
+    if latitude is not None and longitude is not None:
+        try:
+            location_desc = f"GPS: {float(latitude):.6f}, {float(longitude):.6f}"
+        except (ValueError, TypeError):
+            pass
 
     attendance = Attendance.objects.create(
         teacher=teacher,
         school=school,
         attendance_date=today,
         attendance_time=timezone.now().time(),
-        status=status,
+        attendance_status=status,
+        standard_class=standard_class,
         notes=payload.get("notes", ""),
-        latitude=teacher_lat,
-        longitude=teacher_lon,
+        latitude=float(latitude) if latitude is not None else None,
+        longitude=float(longitude) if longitude is not None else None,
         location=location_desc,
         distance_from_school=distance,
         created_at=timezone.now(),
@@ -847,20 +951,34 @@ def api_validate_gps(request):
     latitude = payload.get("latitude")
     longitude = payload.get("longitude")
 
-    if not school_id or latitude is None or longitude is None:
-        return JsonResponse({"error": "Missing school_id, latitude, or longitude"}, status=400)
+    if latitude is None or longitude is None:
+        return JsonResponse({"error": "Missing latitude or longitude"}, status=400)
 
-    school = get_object_or_404(School, pk=school_id)
+    global_settings = SchoolSettings.objects.first()
+    
+    school_lat, school_lng, allowed_radius = None, None, None
+    school_name = "School Settings"
+    
+    if global_settings and global_settings.school_latitude is not None and global_settings.school_longitude is not None:
+        school_lat = global_settings.school_latitude
+        school_lng = global_settings.school_longitude
+        allowed_radius = global_settings.allowed_radius
+    elif school_id:
+        school = get_object_or_404(School, pk=school_id)
+        school_lat = school.school_latitude
+        school_lng = school.school_longitude
+        allowed_radius = school.allowed_radius_meters
+        school_name = school.name
+        
+    if not school_lat or not school_lng:
+        return JsonResponse({"error": "School GPS coordinates are not configured"}, status=400)
 
-    if not school.school_latitude or not school.school_longitude:
-        return JsonResponse({"error": f"School '{school.name}' has no GPS coordinates configured"}, status=400)
-
-    distance = haversine(latitude, longitude, school.school_latitude, school.school_longitude)
-    within = distance <= school.allowed_radius_meters
+    distance = haversine(latitude, longitude, school_lat, school_lng)
+    within = distance <= allowed_radius
 
     return JsonResponse({
         "within": within,
         "distance": int(distance),
-        "max_distance": school.allowed_radius_meters,
-        "school": school.name,
+        "max_distance": allowed_radius,
+        "school": school_name,
     })
