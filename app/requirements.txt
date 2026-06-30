@@ -1,2 +1,5 @@
-Django>=5.0,<6.0
-Pillow
+asgiref==3.11.1
+Django==5.2.15
+pillow==12.2.0
+sqlparse==0.5.5
+tzdata==2026.2
