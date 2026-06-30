@@ -1,0 +1,141 @@
+{% extends "management/base.html" %}
+{% block title %}Attendance Approvals{% endblock %}
+
+{% block content %}
+<div class="hero-card">
+    <h2><i class="bi bi-shield-check me-2"></i>Attendance Approvals</h2>
+    <p style="opacity:0.85;">Review and manage attendance requests from teachers outside school campus.</p>
+</div>
+
+<!-- Filter Tabs -->
+<ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" href="{% url 'admin_pending_requests' %}">
+            <i class="bi bi-hourglass-split me-1"></i>Pending
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}" href="{% url 'admin_all_requests' %}?status=approved">
+            <i class="bi bi-check-circle me-1"></i>Approved
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'rejected' %}active{% endif %}" href="{% url 'admin_all_requests' %}?status=rejected">
+            <i class="bi bi-x-circle me-1"></i>Rejected
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if not status_filter %}active{% endif %}" href="{% url 'admin_all_requests' %}">
+            <i class="bi bi-list me-1"></i>All
+        </a>
+    </li>
+</ul>
+
+<div class="content-card">
+    {% if attendances %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    <th>School</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Verification</th>
+                    <th>Distance</th>
+                    <th>Selfie</th>
+                    <th>Approval</th>
+                    <th>Approved By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for att in attendances %}
+                <tr>
+                    <td><strong>{{ att.teacher.full_name }}</strong></td>
+                    <td>{{ att.school.name }}</td>
+                    <td>{{ att.attendance_date }}</td>
+                    <td>
+                        {% if att.attendance_status == "present" or att.attendance_status == "PRESENT" %}
+                            <span class="badge badge-present">Present</span>
+                        {% elif att.attendance_status == "absent" or att.attendance_status == "ABSENT" %}
+                            <span class="badge badge-absent">Absent</span>
+                        {% elif att.attendance_status == "half_leave" %}
+                            <span class="badge badge-half_day">Half Day</span>
+                        {% elif att.attendance_status == "leave" %}
+                            <span class="badge badge-leave">Leave</span>
+                        {% elif att.attendance_status == "cl" %}
+                            <span class="badge badge-cl">CL</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ att.get_attendance_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge bg-info">{{ att.get_verification_method_display }}</span></td>
+                    <td>
+                        {% if att.distance_from_school %}
+                            <span class="fw-bold">{{ att.distance_from_school|floatformat:0 }}m</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.selfie_image %}
+                            <a href="{{ att.selfie_image.url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
+                                <i class="bi bi-image me-1"></i>View
+                            </a>
+                        {% else %}
+                            <span class="text-muted">No selfie</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.approval_status == "pending" %}
+                            <span class="badge badge-pending"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+                        {% elif att.approval_status == "approved" %}
+                            <span class="badge badge-approved"><i class="bi bi-check-circle me-1"></i>Approved</span>
+                        {% elif att.approval_status == "rejected" %}
+                            <span class="badge badge-rejected"><i class="bi bi-x-circle me-1"></i>Rejected</span>
+                        {% else %}
+                            <span class="badge bg-secondary">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.approved_by %}
+                            {{ att.approved_by.get_full_name|default:att.approved_by.username }}
+                            <br><small class="text-muted">{{ att.approved_at|date:"M d, H:i" }}</small>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.approval_status == "pending" %}
+                        <div class="d-flex gap-1">
+                            <form method="post" action="{% url 'admin_approve' att.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
+                                    <i class="bi bi-check-lg"></i> Approve
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'admin_reject' att.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3">
+                                    <i class="bi bi-x-lg"></i> Reject
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <p class="text-muted mt-3">No attendance requests found.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

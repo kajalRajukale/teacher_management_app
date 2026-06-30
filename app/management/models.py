@@ -18,7 +18,7 @@ class SchoolSettings(models.Model):
         help_text="Longitude of the school (-180.0 to 180.0)"
     )
     allowed_radius = models.IntegerField(
-        default=100,
+        default=500,
         validators=[MinValueValidator(1)],
         help_text="Allowed attendance radius in meters"
     )
@@ -48,7 +48,7 @@ class School(models.Model):
         validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
     )
     allowed_radius_meters = models.IntegerField(
-        default=100,
+        default=500,
         validators=[MinValueValidator(1)],
         help_text="Allowed radius in meters"
     )
@@ -97,11 +97,12 @@ class Teacher(models.Model):
 
 class Attendance(models.Model):
     class StatusChoices(models.TextChoices):
-        PRESENT = 'PRESENT', 'Present'
-        ABSENT = 'ABSENT', 'Absent'
-        LEAVE = 'LEAVE', 'Leave'
-        CL = 'CL', 'CL (Casual Leave)'
-        HALF_DAY = 'HALF_DAY', 'Half Day'
+        PRESENT = 'present', 'Present'
+        ABSENT = 'absent', 'Absent'
+        LEAVE = 'leave', 'Leave'
+        CL = 'cl', 'CL (Casual Leave)'
+        HALF_LEAVE = 'half_leave', 'Half Leave'
+        OTHER = 'other', 'Other'
 
     WEEKDAY_CHOICES = [
         ('MON', 'Monday'),
@@ -114,12 +115,17 @@ class Attendance(models.Model):
     ]
 
     VERIFICATION_CHOICES = [
-        ('GPS', 'GPS'),
-        ('SELFIE', 'Selfie Verification'),
-        ('FACE', 'Face Recognition'),
-        ('QR', 'QR Code'),
-        ('DEVICE', 'Device Verification'),
-        ('WIFI', 'WiFi Verification'),
+        ('GPS_SELFIE', 'GPS + Selfie'),
+        ('GPS', 'GPS Only'),
+        ('SELFIE', 'Selfie Only'),
+        ('MANUAL', 'Manual'),
+    ]
+
+    APPROVAL_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('none', 'None'),
     ]
 
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='attendances')
@@ -149,9 +155,13 @@ class Attendance(models.Model):
     face_confidence = models.FloatField(blank=True, null=True)
     qr_code_data = models.CharField(blank=True, max_length=255, null=True)
     selfie_image = models.ImageField(blank=True, null=True, upload_to='attendance_selfies/')
-    verification_method = models.CharField(max_length=50, choices=VERIFICATION_CHOICES, default='GPS')
+    verification_method = models.CharField(max_length=50, choices=VERIFICATION_CHOICES, default='GPS_SELFIE')
     wifi_bssid = models.CharField(blank=True, max_length=255, null=True)
     wifi_ssid = models.CharField(blank=True, max_length=255, null=True)
+
+    approval_status = models.CharField(max_length=20, choices=APPROVAL_CHOICES, default='none')
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_attendances')
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-attendance_date', 'weekday', 'start_time', 'teacher__last_name']

@@ -1,216 +1,316 @@
 {% extends "management/base.html" %}
-{% block title %}Mark Attendance - Teacher Management{% endblock %}
+{% block title %}Mark Attendance{% endblock %}
 
 {% block content %}
-<div class="narrow">
-    <div class="card" style="border-top: 4px solid #10b981; margin-top: 30px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); padding: 30px;">
-        <h2 style="text-align: center; color: #111827; margin-bottom: 8px; font-weight: 800;">Mark Attendance</h2>
-        <p style="text-align: center; color: #64748b; margin-bottom: 24px; font-size: 14px; font-weight: 500;">
-            Secure GPS-Based School Attendance Verification
-        </p>
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+        <div class="content-card" style="border-top: 4px solid #10b981;">
+            <h3 class="text-center fw-bold mb-1"><i class="bi bi-camera-video me-2"></i>Mark Attendance</h3>
+            <p class="text-center text-muted mb-4">GPS + Selfie Verification System</p>
 
-        {% if success %}
-            <div style="background: #dcfce7; border-left: 4px solid #16a34a; color: #14532d; padding: 18px; border-radius: 12px; margin-bottom: 24px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">✓</span>
-                <div>{{ success }}</div>
-            </div>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <a href="{% url 'dashboard' %}" class="button" style="border-radius: 999px; padding: 12px 24px;">Go to Dashboard</a>
-                <a href="{% url 'attendance_list' %}" class="button secondary" style="border-radius: 999px; padding: 12px 24px;">View Records</a>
-            </div>
-        {% else %}
-            {% if error %}
-                <div style="background: #fee2e2; border-left: 4px solid #dc2626; color: #7f1d1d; padding: 18px; border-radius: 12px; margin-bottom: 24px; font-weight: 600; font-size: 15px;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                        <span style="font-size: 20px;">⚠️</span>
-                        <strong>Error:</strong>
+            {% if success %}
+                <div class="alert alert-success d-flex align-items-center gap-2 py-3">
+                    <i class="bi bi-check-circle-fill fs-4"></i>
+                    <div>
+                        <strong>Success!</strong> {{ success }}
                     </div>
-                    <div style="font-weight: 500; margin-left: 30px;">{{ error }}</div>
-                    {% if distance and max_distance %}
-                        <p style="margin: 8px 0 0 30px; font-size: 13px; font-weight: normal; color: #991b1b;">
-                            Calculated distance: <strong>{{ distance }}m</strong>. Maximum allowed radius: <strong>{{ max_distance }}m</strong>.
-                        </p>
-                    {% endif %}
                 </div>
-            {% endif %}
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary rounded-pill px-4">Dashboard</a>
+                    <a href="{% url 'attendance_list' %}" class="btn btn-outline-secondary rounded-pill px-4">Records</a>
+                </div>
+            {% else %}
 
-            <!-- Location Detection Banner -->
-            <div id="location-banner" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 16px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; transition: all 0.3s ease;">
-                <div id="location-spinner" style="border: 3px solid #cbd5e1; border-top: 3px solid #2757d7; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin-bottom: 12px;"></div>
-                <strong id="location-status" style="color: #475569; font-size: 16px;">Detecting your GPS location...</strong>
-                <p id="location-detail" style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; line-height: 1.5;">Please grant location access when prompted by your browser.</p>
-            </div>
-
-            <!-- Preloaded School Data for Javascript -->
-            <div id="school-data" 
-                 data-lat="{{ school_latitude|default:'' }}" 
-                 data-lng="{{ school_longitude|default:'' }}" 
-                 data-radius="{{ allowed_radius|default:'' }}">
-            </div>
-
-            <form method="post" id="attendance-form" class="form">
-                {% csrf_token %}
-                
-                <!-- Hidden inputs for automatic parameters -->
-                <input type="hidden" name="latitude" id="id_latitude">
-                <input type="hidden" name="longitude" id="id_longitude">
-
-                <!-- Two-Column Table Layout for Form Fields -->
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-                    <tbody>
-                        <!-- Teacher Name Row -->
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 16px 12px; width: 35%; vertical-align: middle; font-weight: 700; color: #4b5563; font-size: 14px;">
-                                Teacher Name
-                            </td>
-                            <td style="padding: 16px 12px; width: 65%; vertical-align: middle;">
-                                {% if is_teacher %}
-                                    <span style="font-size: 16px; font-weight: 700; color: #1f2937;">{{ user.teacher_profile.full_name }}</span>
-                                {% else %}
-                                    <select name="teacher_id" id="id_teacher_id" required style="padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 15px; width: 100%;">
-                                        <option value="">-- Select Teacher --</option>
-                                        {% for t in teachers %}
-                                            <option value="{{ t.id }}">{{ t.full_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                {% endif %}
-                            </td>
-                        </tr>
-
-                        <!-- Standard/Class (STD) Row -->
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 16px 12px; vertical-align: middle; font-weight: 700; color: #4b5563; font-size: 14px;">
-                                Standard/Class (STD) <span style="color: #dc2626;">*</span>
-                            </td>
-                            <td style="padding: 16px 12px; vertical-align: middle;">
-                                <input type="text" name="standard_class" id="id_standard_class" required placeholder="e.g. 10th Grade, Class A" style="padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 15px; width: 100%; box-sizing: border-box;">
-                            </td>
-                        </tr>
-
-                        <!-- Current Date & Time Row (Auto-filled) -->
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 16px 12px; vertical-align: middle; font-weight: 700; color: #4b5563; font-size: 14px;">
-                                Current Date & Time
-                            </td>
-                            <td style="padding: 16px 12px; vertical-align: middle; color: #1f2937; font-size: 15px; font-weight: 600;" id="current-time-display">
-                                Loading time...
-                            </td>
-                        </tr>
-
-                        <!-- Current GPS Location Row (Auto-filled) -->
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 16px 12px; vertical-align: middle; font-weight: 700; color: #4b5563; font-size: 14px;">
-                                Current GPS Location
-                            </td>
-                            <td style="padding: 16px 12px; vertical-align: middle; color: #1f2937; font-size: 14px; font-family: monospace;" id="gps-location-display">
-                                <span style="color: #d97706; font-weight: 700;">🕒 Waiting for GPS lock...</span>
-                            </td>
-                        </tr>
-
-                        <!-- Admin School Selection (Only shown if Admin) -->
-                        {% if not is_teacher %}
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td style="padding: 16px 12px; vertical-align: middle; font-weight: 700; color: #4b5563; font-size: 14px;">
-                                School (Admin Override)
-                            </td>
-                            <td style="padding: 16px 12px; vertical-align: middle;">
-                                <select name="school_id" id="id_school_id" required style="padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 15px; width: 100%;">
-                                    <option value="">-- Select School --</option>
-                                    {% for s in schools %}
-                                        <option value="{{ s.id }}" 
-                                                data-lat="{{ s.school_latitude|default:'' }}" 
-                                                data-lng="{{ s.school_longitude|default:'' }}" 
-                                                data-radius="{{ s.allowed_radius_meters|default:'100' }}">
-                                            {{ s.name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                        </tr>
+                {% if error %}
+                <div class="alert alert-danger d-flex align-items-center gap-2 py-3">
+                    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                    <div>
+                        <strong>Error:</strong> {{ error }}
+                        {% if distance and max_distance %}
+                        <br><small class="text-muted">Distance: <strong>{{ distance }}m</strong> | Allowed: <strong>{{ max_distance }}m</strong></small>
                         {% endif %}
-                    </tbody>
-                </table>
-
-                <div style="margin-top: 28px;">
-                    <button type="submit" id="submit-btn" disabled style="width: 100%; padding: 16px; font-size: 16px; background: #94a3b8; color: white; cursor: not-allowed; transition: all 0.3s ease; border: none; border-radius: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-                        Waiting for location...
-                    </button>
+                    </div>
                 </div>
-            </form>
-        {% endif %}
+                {% endif %}
+
+                <!-- GPS Status Banner -->
+                <div id="location-banner" class="alert alert-info text-center py-3 mb-4">
+                    <div id="location-spinner" class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    <strong id="location-status">Detecting GPS location...</strong>
+                    <p id="location-detail" class="mb-0 mt-1 small text-muted">Grant location access when prompted.</p>
+                </div>
+
+                <!-- School Data -->
+                <div id="school-data"
+                     data-lat="{{ school_latitude|default:'' }}"
+                     data-lng="{{ school_longitude|default:'' }}"
+                     data-radius="{{ allowed_radius|default:'500' }}">
+                </div>
+
+                <form method="post" id="attendance-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="latitude" id="id_latitude">
+                    <input type="hidden" name="longitude" id="id_longitude">
+                    <input type="hidden" name="selfie_data" id="id_selfie_data">
+
+                    <!-- Teacher Name -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-person me-1"></i>Teacher Name</label>
+                        {% if is_teacher %}
+                            <input type="text" class="form-control" value="{{ user.teacher_profile.full_name }}" readonly>
+                        {% else %}
+                            <select name="teacher_id" id="id_teacher_id" class="form-select" required>
+                                <option value="">-- Select Teacher --</option>
+                                {% for t in teachers %}
+                                    <option value="{{ t.id }}">{{ t.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+
+                    <!-- Standard/Class -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-book me-1"></i>Standard/Class (STD) <span class="text-danger">*</span></label>
+                        <input type="text" name="standard_class" id="id_standard_class" class="form-control" required placeholder="e.g. 10th Grade, Class A">
+                    </div>
+
+                    <!-- Attendance Status -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-tag me-1"></i>Attendance Status <span class="text-danger">*</span></label>
+                        <select name="attendance_status" id="id_attendance_status" class="form-select" required>
+                            <option value="present" selected>Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="leave">Leave</option>
+                            <option value="cl">CL (Casual Leave)</option>
+                            <option value="half_leave">Half Day</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <small class="text-muted">GPS is required for Present and Half Day.</small>
+                    </div>
+
+                    <!-- Current Date & Time -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-clock me-1"></i>Current Date & Time</label>
+                        <div class="form-control bg-light" id="current-time-display">Loading...</div>
+                    </div>
+
+                    <!-- GPS Location Display -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-geo-alt me-1"></i>GPS Location</label>
+                        <div class="form-control bg-light" id="gps-location-display">
+                            <span class="text-warning fw-bold">Waiting for GPS lock...</span>
+                        </div>
+                        <small id="distance-display" class="text-muted"></small>
+                    </div>
+
+                    <!-- Selfie Capture -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold"><i class="bi bi-camera me-1"></i>Selfie Capture <span class="text-danger">*</span></label>
+                        <div id="selfie-section">
+                            <div id="camera-container" class="text-center mb-3" style="display:none;">
+                                <video id="camera-preview" autoplay playsinline class="rounded-3 border w-100" style="max-height:320px; object-fit:cover;"></video>
+                                <div class="mt-2">
+                                    <button type="button" id="capture-btn" class="btn btn-danger rounded-pill px-4">
+                                        <i class="bi bi-camera-fill me-1"></i>Capture Selfie
+                                    </button>
+                                    <button type="button" id="stop-camera-btn" class="btn btn-outline-secondary rounded-pill px-3 ms-2">
+                                        <i class="bi bi-x-lg me-1"></i>Cancel
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="preview-container" class="text-center" style="display:none;">
+                                <img id="selfie-preview" class="rounded-3 border mb-2" style="max-height:300px;">
+                                <div>
+                                    <button type="button" id="retake-btn" class="btn btn-outline-warning rounded-pill px-3">
+                                        <i class="bi bi-arrow-repeat me-1"></i>Retake
+                                    </button>
+                                    <button type="button" id="confirm-selfie-btn" class="btn btn-success rounded-pill px-3 ms-2">
+                                        <i class="bi bi-check-lg me-1"></i>Use This Photo
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="start-camera" class="text-center">
+                                <button type="button" id="open-camera-btn" class="btn btn-outline-primary rounded-pill px-4">
+                                    <i class="bi bi-camera-video me-1"></i>Open Camera
+                                </button>
+                                <p class="text-muted small mt-2 mb-0">Live camera capture only. Gallery upload not allowed.</p>
+                            </div>
+                        </div>
+                        <input type="file" id="selfie-file-input" accept="image/*" capture="user" style="display:none;">
+                    </div>
+
+                    <!-- Admin School Override -->
+                    {% if not is_teacher %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="bi bi-building me-1"></i>School (Admin Override)</label>
+                        <select name="school_id" id="id_school_id" class="form-select" required>
+                            <option value="">-- Select School --</option>
+                            {% for s in schools %}
+                                <option value="{{ s.id }}"
+                                        data-lat="{{ s.school_latitude|default:'' }}"
+                                        data-lng="{{ s.school_longitude|default:'' }}"
+                                        data-radius="{{ s.allowed_radius_meters|default:'500' }}">
+                                    {{ s.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <!-- Submit Button -->
+                    <div class="d-grid mt-4">
+                        <button type="submit" id="submit-btn" class="btn btn-lg btn-mark rounded-pill py-3" disabled>
+                            <i class="bi bi-hourglass-split me-2"></i>Waiting for GPS & Selfie...
+                        </button>
+                    </div>
+
+                    <!-- Admin Override Button (shown when outside radius) -->
+                    <div id="admin-override-section" class="text-center mt-3" style="display:none;">
+                        <div class="alert alert-warning py-2 mb-2">
+                            <i class="bi bi-exclamation-circle me-1"></i>You are outside the school campus.
+                        </div>
+                        <button type="submit" id="admin-override-btn" class="btn btn-outline-warning rounded-pill px-4">
+                            <i class="bi bi-shield-check me-1"></i>I am inside the school. Request Admin Approval.
+                        </button>
+                    </div>
+                </form>
+
+            {% endif %}
+        </div>
     </div>
 </div>
+{% endblock %}
 
-<style>
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-</style>
-
+{% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const statusText = document.getElementById("location-status");
     const detailText = document.getElementById("location-detail");
     const gpsDisplay = document.getElementById("gps-location-display");
-    const spinner = document.getElementById("location-spinner");
+    const distanceDisplay = document.getElementById("distance-display");
     const banner = document.getElementById("location-banner");
     const submitBtn = document.getElementById("submit-btn");
+    const adminOverrideSection = document.getElementById("admin-override-section");
     const latInput = document.getElementById("id_latitude");
     const lngInput = document.getElementById("id_longitude");
+    const selfieInput = document.getElementById("id_selfie_data");
     const schoolData = document.getElementById("school-data");
     const schoolSelect = document.getElementById("id_school_id");
+    const statusSelect = document.getElementById("id_attendance_status");
 
-    let userLat = null;
-    let userLng = null;
-    let userAccuracy = null;
+    let userLat = null, userLng = null, userAccuracy = null;
     let gpsChecking = false;
+    let selfieConfirmed = false;
+    let cameraStream = null;
 
     // Live Clock
     function updateClock() {
         const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-        const clockElement = document.getElementById("current-time-display");
-        if (clockElement) {
-            clockElement.innerHTML = now.toLocaleDateString('en-US', options);
-        }
+        document.getElementById("current-time-display").textContent = now.toLocaleString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Check internet connection immediately
+    // Camera Functions
+    const openCameraBtn = document.getElementById("open-camera-btn");
+    const cameraContainer = document.getElementById("camera-container");
+    const cameraPreview = document.getElementById("camera-preview");
+    const captureBtn = document.getElementById("capture-btn");
+    const stopCameraBtn = document.getElementById("stop-camera-btn");
+    const previewContainer = document.getElementById("preview-container");
+    const selfiePreview = document.getElementById("selfie-preview");
+    const retakeBtn = document.getElementById("retake-btn");
+    const confirmSelfieBtn = document.getElementById("confirm-selfie-btn");
+    const startCameraDiv = document.getElementById("start-camera");
+
+    if (openCameraBtn) {
+        openCameraBtn.addEventListener("click", async function() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                cameraPreview.srcObject = cameraStream;
+                startCameraDiv.style.display = "none";
+                cameraContainer.style.display = "block";
+                previewContainer.style.display = "none";
+            } catch (err) {
+                alert("Camera access denied. Please enable camera permissions in your browser settings.");
+            }
+        });
+    }
+
+    if (captureBtn) {
+        captureBtn.addEventListener("click", function() {
+            const canvas = document.createElement("canvas");
+            canvas.width = cameraPreview.videoWidth;
+            canvas.height = cameraPreview.videoHeight;
+            canvas.getContext("2d").drawImage(cameraPreview, 0, 0);
+            selfiePreview.src = canvas.toDataURL("image/jpeg", 0.85);
+            cameraContainer.style.display = "none";
+            previewContainer.style.display = "block";
+            stopCamera();
+        });
+    }
+
+    if (stopCameraBtn) {
+        stopCameraBtn.addEventListener("click", function() {
+            stopCamera();
+            startCameraDiv.style.display = "block";
+            cameraContainer.style.display = "none";
+            previewContainer.style.display = "none";
+        });
+    }
+
+    if (retakeBtn) {
+        retakeBtn.addEventListener("click", function() {
+            previewContainer.style.display = "none";
+            openCameraBtn.click();
+        });
+    }
+
+    if (confirmSelfieBtn) {
+        confirmSelfieBtn.addEventListener("click", function() {
+            selfieConfirmed = true;
+            selfieInput.value = selfiePreview.src;
+            previewContainer.innerHTML = '<div class="alert alert-success py-2"><i class="bi bi-check-circle-fill me-1"></i>Selfie captured successfully!</div>';
+            evaluateSubmit();
+        });
+    }
+
+    function stopCamera() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(t => t.stop());
+            cameraStream = null;
+        }
+    }
+
+    // GPS Functions
     if (!navigator.onLine) {
-        showError("Internet connection is unavailable. Please reconnect and try again.");
+        showGPSMessage("Internet connection is unavailable.", "danger");
         return;
     }
 
-    window.addEventListener('offline', function() {
-        showError("Internet connection is unavailable. Please reconnect and try again.");
-    });
-
-    // Start location check
-    startGPSCheck();
+    startGPS();
 
     if (schoolSelect) {
-        schoolSelect.addEventListener("change", evaluateAttendanceSubmit);
+        schoolSelect.addEventListener("change", evaluateSubmit);
+    }
+    if (statusSelect) {
+        statusSelect.addEventListener("change", evaluateSubmit);
     }
 
-    function startGPSCheck() {
+    function startGPS() {
         if (!navigator.geolocation) {
-            showError("Please enable GPS to mark attendance.");
+            showGPSMessage("Geolocation is not supported by your browser.", "danger");
             return;
         }
-
         gpsChecking = true;
-        updateUIState("detecting");
-
-        const geoOptions = {
-            enableHighAccuracy: true,
-            timeout: 12000,
-            maximumAge: 0
-        };
-
-        navigator.geolocation.getCurrentPosition(onGPSSuccess, onGPSError, geoOptions);
+        navigator.geolocation.getCurrentPosition(onGPSSuccess, onGPSError, {
+            enableHighAccuracy: true, timeout: 12000, maximumAge: 0
+        });
     }
 
     function onGPSSuccess(position) {
@@ -218,183 +318,115 @@ document.addEventListener("DOMContentLoaded", function() {
         userLat = position.coords.latitude;
         userLng = position.coords.longitude;
         userAccuracy = position.coords.accuracy;
-
         latInput.value = userLat;
         lngInput.value = userLng;
-
-        // Verify GPS accuracy: threshold is 100 meters
-        if (userAccuracy > 100) {
-            showError("Unable to verify your location accurately. Please try again.");
-            return;
-        }
-
-        evaluateAttendanceSubmit();
+        evaluateSubmit();
     }
 
     function onGPSError(err) {
         gpsChecking = false;
-        if (err.code === 1) {
-            showError("Location permission is required to mark attendance.");
-        } else if (err.code === 2) {
-            showError("Please enable GPS to mark attendance.");
-        } else if (err.code === 3) {
-            showError("Unable to verify your location accurately. Please try again.");
-        } else {
-            showError("Unable to retrieve location. Please try again.");
-        }
+        const msgs = { 1: "Location permission denied.", 2: "GPS unavailable.", 3: "Location timeout." };
+        showGPSMessage(msgs[err.code] || "Unable to get location.", "danger");
     }
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000; // Earth's radius in meters
+        const R = 6371000;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c; // distance in meters
+        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    function evaluateAttendanceSubmit() {
+    function evaluateSubmit() {
         if (gpsChecking) return;
 
-        // Get target school coordinates
-        let targetLat = null;
-        let targetLng = null;
-        let allowedRadius = null;
+        const needsGPS = statusSelect && (statusSelect.value === "present" || statusSelect.value === "half_leave");
 
-        if (schoolSelect) {
-            // Admin override mode
-            const selectedOption = schoolSelect.options[schoolSelect.selectedIndex];
-            if (selectedOption && selectedOption.value) {
-                targetLat = parseFloat(selectedOption.getAttribute("data-lat"));
-                targetLng = parseFloat(selectedOption.getAttribute("data-lng"));
-                allowedRadius = parseInt(selectedOption.getAttribute("data-radius"));
-            } else {
-                // Admin has not selected a school yet
-                updateUIState("waiting-school");
-                return;
-            }
-        } else {
-            // Teacher mode: get preloaded school data
-            targetLat = parseFloat(schoolData.getAttribute("data-lat"));
-            targetLng = parseFloat(schoolData.getAttribute("data-lng"));
-            allowedRadius = parseInt(schoolData.getAttribute("data-radius"));
-        }
+        if (!needsGPS) {
+            // GPS not required for this status
+            banner.className = "alert alert-info text-center py-3 mb-4";
+            statusText.innerHTML = "GPS not required for this status";
+            detailText.innerHTML = "GPS is only required for Present and Half Day.";
+            gpsDisplay.innerHTML = '<span class="text-muted">GPS skipped for this status</span>';
+            distanceDisplay.textContent = "";
 
-        // Check if school coordinates are configured
-        if (isNaN(targetLat) || isNaN(targetLng) || !targetLat || !targetLng) {
-            showError("School location has not been configured. Please contact the administrator.");
+            submitBtn.disabled = !selfieConfirmed;
+            submitBtn.innerHTML = selfieConfirmed
+                ? '<i class="bi bi-send-fill me-2"></i>Mark Attendance'
+                : '<i class="bi bi-hourglass-split me-2"></i>Please capture a selfie first...';
+            submitBtn.className = selfieConfirmed
+                ? "btn btn-lg btn-mark rounded-pill py-3"
+                : "btn btn-lg btn-secondary rounded-pill py-3";
+            adminOverrideSection.style.display = "none";
             return;
         }
 
-        // Check if we have user coordinates
+        // GPS required
+        let targetLat = null, targetLng = null, allowedRadius = null;
+
+        if (schoolSelect) {
+            const opt = schoolSelect.options[schoolSelect.selectedIndex];
+            if (opt && opt.value) {
+                targetLat = parseFloat(opt.getAttribute("data-lat"));
+                targetLng = parseFloat(opt.getAttribute("data-lng"));
+                allowedRadius = parseInt(opt.getAttribute("data-radius")) || 500;
+            } else {
+                showGPSMessage("Please select a school first.", "warning");
+                return;
+            }
+        } else {
+            targetLat = parseFloat(schoolData.getAttribute("data-lat"));
+            targetLng = parseFloat(schoolData.getAttribute("data-lng"));
+            allowedRadius = parseInt(schoolData.getAttribute("data-radius")) || 500;
+        }
+
+        if (isNaN(targetLat) || isNaN(targetLng) || !targetLat || !targetLng) {
+            showGPSMessage("School location not configured. Contact admin.", "danger");
+            return;
+        }
+
         if (userLat === null || userLng === null) {
-            showError("Please enable GPS to mark attendance.");
+            showGPSMessage("Waiting for GPS location...", "info");
             return;
         }
 
         const distance = calculateDistance(userLat, userLng, targetLat, targetLng);
         const isInside = distance <= allowedRadius;
 
+        gpsDisplay.innerHTML = `<span class="font-monospace">Lat: ${userLat.toFixed(6)}, Lon: ${userLng.toFixed(6)}</span>`;
+        distanceDisplay.textContent = `Distance: ${Math.round(distance)}m / Allowed: ${allowedRadius}m`;
+
         if (isInside) {
-            updateUIState("success-inside", distance, allowedRadius);
+            banner.className = "alert alert-success text-center py-3 mb-4";
+            statusText.innerHTML = '<i class="bi bi-geo-alt-fill me-1"></i>Inside School Campus';
+            detailText.innerHTML = `Verified (Accuracy: ~${Math.round(userAccuracy)}m)`;
+            distanceDisplay.className = "small text-success fw-bold";
+
+            submitBtn.disabled = !selfieConfirmed;
+            submitBtn.innerHTML = selfieConfirmed
+                ? '<i class="bi bi-send-fill me-2"></i>Mark Attendance'
+                : '<i class="bi bi-hourglass-split me-2"></i>Please capture a selfie first...';
+            submitBtn.className = selfieConfirmed
+                ? "btn btn-lg btn-mark rounded-pill py-3"
+                : "btn btn-lg btn-secondary rounded-pill py-3";
+            adminOverrideSection.style.display = "none";
         } else {
-            updateUIState("failed-outside", distance, allowedRadius);
+            banner.className = "alert alert-danger text-center py-3 mb-4";
+            statusText.innerHTML = '<i class="bi bi-geo-alt-fill me-1"></i>Outside School Campus';
+            detailText.innerHTML = "You are outside the allowed radius.";
+            distanceDisplay.className = "small text-danger fw-bold";
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-x-circle me-2"></i>Outside Campus';
+            submitBtn.className = "btn btn-lg btn-danger rounded-pill py-3";
+            adminOverrideSection.style.display = "block";
         }
     }
 
-    function showError(message) {
-        if (!banner) return;
-        banner.style.background = "#fee2e2";
-        banner.style.borderColor = "#fecaca";
-        spinner.style.display = "none";
-        statusText.innerHTML = "Verification Failed";
-        statusText.style.color = "#dc2626";
-        detailText.innerHTML = message;
-        detailText.style.color = "#991b1b";
-        
-        gpsDisplay.innerHTML = `<span style="color: #dc2626; font-weight: 700;">❌ Location error: ${message}</span>`;
-
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.style.background = "#94a3b8";
-            submitBtn.style.color = "#e2e8f0";
-            submitBtn.style.cursor = "not-allowed";
-            submitBtn.innerHTML = "Attendance Blocked";
-        }
-    }
-
-    function updateUIState(state, distance, allowedRadius) {
-        if (!banner) return;
-
-        if (state === "detecting") {
-            banner.style.background = "#f1f5f9";
-            banner.style.borderColor = "#cbd5e1";
-            spinner.style.display = "block";
-            statusText.innerHTML = "Detecting your GPS location...";
-            statusText.style.color = "#475569";
-            detailText.innerHTML = "Please grant location access when prompted by your browser.";
-            detailText.style.color = "#64748b";
-            
-            gpsDisplay.innerHTML = `<span style="color: #d97706; font-weight: 700;">🕒 Waiting for GPS lock...</span>`;
-
-            submitBtn.disabled = true;
-            submitBtn.style.background = "#94a3b8";
-            submitBtn.style.cursor = "not-allowed";
-            submitBtn.innerHTML = "Waiting for GPS...";
-        } 
-        else if (state === "waiting-school") {
-            banner.style.background = "#fef3c7";
-            banner.style.borderColor = "#fde68a";
-            spinner.style.display = "none";
-            statusText.innerHTML = "Select School";
-            statusText.style.color = "#d97706";
-            detailText.innerHTML = "Please select a school to verify location.";
-            detailText.style.color = "#b45309";
-            
-            gpsDisplay.innerHTML = `<span style="color: #d97706; font-weight: 700;">📍 Lat: ${userLat.toFixed(6)}, Lon: ${userLng.toFixed(6)} (Waiting for school selection)</span>`;
-
-            submitBtn.disabled = true;
-            submitBtn.style.background = "#94a3b8";
-            submitBtn.style.cursor = "not-allowed";
-            submitBtn.innerHTML = "Select School First";
-        }
-        else if (state === "success-inside") {
-            banner.style.background = "#dcfce7";
-            banner.style.borderColor = "#bbf7d0";
-            spinner.style.display = "none";
-            statusText.innerHTML = "Location Verified Successfully";
-            statusText.style.color = "#16a34a";
-            detailText.innerHTML = `You are inside the school campus (Accuracy: ~${Math.round(userAccuracy)}m).`;
-            detailText.style.color = "#14532d";
-
-            gpsDisplay.innerHTML = `<span style="color: #16a34a; font-weight: 700;">✔ Lat: ${userLat.toFixed(6)}, Lon: ${userLng.toFixed(6)} (Distance: ${Math.round(distance)}m / Allowed: ${allowedRadius}m)</span>`;
-
-            submitBtn.disabled = false;
-            submitBtn.style.background = "#10b981";
-            submitBtn.style.cursor = "pointer";
-            submitBtn.style.color = "white";
-            submitBtn.innerHTML = "Mark Attendance";
-        }
-        else if (state === "failed-outside") {
-            banner.style.background = "#fee2e2";
-            banner.style.borderColor = "#fecaca";
-            spinner.style.display = "none";
-            statusText.innerHTML = "Outside School Campus";
-            statusText.style.color = "#dc2626";
-            detailText.innerHTML = "You are outside the school campus. Attendance can only be marked when you are near the school.";
-            detailText.style.color = "#991b1b";
-
-            gpsDisplay.innerHTML = `<span style="color: #dc2626; font-weight: 700;">❌ Lat: ${userLat.toFixed(6)}, Lon: ${userLng.toFixed(6)} (Distance: ${Math.round(distance)}m / Allowed: ${allowedRadius}m)</span>`;
-
-            submitBtn.disabled = true;
-            submitBtn.style.background = "#ef4444";
-            submitBtn.style.color = "white";
-            submitBtn.style.cursor = "not-allowed";
-            submitBtn.innerHTML = "Outside School Campus";
-        }
+    function showGPSMessage(msg, type) {
+        banner.className = `alert alert-${type} text-center py-3 mb-4`;
+        statusText.innerHTML = msg;
+        detailText.innerHTML = "";
     }
 });
 </script>

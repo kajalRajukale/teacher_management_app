@@ -2,16 +2,15 @@
 {% block title %}Attendance Report{% endblock %}
 
 {% block content %}
-<section class="hero-card">
-    <div class="section-header">
-        <h2>Attendance Report</h2>
-        <a class="button" href="{% url 'attendance_create' %}">Add attendance</a>
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0 fw-bold"><i class="bi bi-bar-chart me-1"></i>Attendance Report</h4>
+        <a class="btn btn-sm btn-mark rounded-pill" href="{% url 'attendance_create' %}">Add Attendance</a>
     </div>
 
-    <form method="get" class="report-filters">
-        <div class="form-row">
-            <label for="teacher">Teacher</label>
-            <select name="teacher" id="teacher">
+    <form method="get" class="row g-2 mb-4 p-3 bg-light rounded-3">
+        <div class="col-md-3 col-sm-6">
+            <select name="teacher" class="form-select form-select-sm">
                 <option value="">All Teachers</option>
                 {% for teacher in teachers %}
                     <option value="{{ teacher.id }}" {% if selected_teacher == teacher.id|stringformat:"d" %}selected{% endif %}>
@@ -20,131 +19,174 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="form-row">
-            <label for="date_from">From Date</label>
-            <input type="date" name="date_from" id="date_from" value="{{ selected_date_from|default:'' }}">
+        <div class="col-md-2 col-sm-6">
+            <input type="date" name="date_from" value="{{ selected_date_from|default:'' }}" class="form-control form-control-sm" placeholder="From Date">
         </div>
-        <div class="form-row">
-            <label for="date_to">To Date</label>
-            <input type="date" name="date_to" id="date_to" value="{{ selected_date_to|default:'' }}">
+        <div class="col-md-2 col-sm-6">
+            <input type="date" name="date_to" value="{{ selected_date_to|default:'' }}" class="form-control form-control-sm" placeholder="To Date">
         </div>
-        <div class="form-row filter-buttons">
-            <button type="submit">Filter</button>
-            <a class="button secondary" href="{% url 'attendance_report' %}">Clear</a>
+        <div class="col-md-3 col-sm-12">
+            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 me-1">Filter</button>
+            <a href="{% url 'attendance_report' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Clear</a>
         </div>
     </form>
-</section>
+</div>
 
-<section class="stats">
-    <article>
-        <span class="status-total">{{ total_count }}</span>
-        <strong>Total</strong>
-    </article>
-    <article>
-        <span class="status-present">{{ present_count }}</span>
-        <strong>Present</strong>
-    </article>
-    <article>
-        <span class="status-absent">{{ absent_count }}</span>
-        <strong>Absent</strong>
-    </article>
-    <article>
-        <span class="status-leave">{{ leave_count }}</span>
-        <strong>Leave</strong>
-    </article>
-    <article>
-        <span class="status-cl">{{ cl_count }}</span>
-        <strong>CL</strong>
-    </article>
-    <article>
-        <span class="status-half_day">{{ half_day_count }}</span>
-        <strong>Half Day</strong>
-    </article>
-</section>
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-4 col-md-2">
+        <div class="stat-card" style="border-top-color:#475569;">
+            <div class="stat-number" style="color:#475569;">{{ total_count }}</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="stat-card" style="border-top-color:#10b981;">
+            <div class="stat-number text-success">{{ present_count }}</div>
+            <div class="stat-label">Present</div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="stat-card" style="border-top-color:#ef4444;">
+            <div class="stat-number text-danger">{{ absent_count }}</div>
+            <div class="stat-label">Absent</div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="stat-card" style="border-top-color:#f59e0b;">
+            <div class="stat-number" style="color:#d97706;">{{ leave_count }}</div>
+            <div class="stat-label">Leave</div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="stat-card" style="border-top-color:#6366f1;">
+            <div class="stat-number" style="color:#6366f1;">{{ cl_count }}</div>
+            <div class="stat-label">CL</div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="stat-card" style="border-top-color:#a855f7;">
+            <div class="stat-number" style="color:#a855f7;">{{ half_day_count }}</div>
+            <div class="stat-label">Half Day</div>
+        </div>
+    </div>
+</div>
 
 {% if teacher_summary %}
-<section class="card">
-    <h2>Teacher-wise Summary</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Teacher</th>
-                <th>Total</th>
-                <th>Present</th>
-                <th>Absent</th>
-                <th>Leave</th>
-                <th>CL</th>
-                <th>Half Day</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in teacher_summary %}
+<div class="content-card">
+    <h5 class="fw-bold mb-3"><i class="bi bi-people me-1"></i>Teacher-wise Summary</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    <th>Total</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                    <th>Leave</th>
+                    <th>CL</th>
+                    <th>Half Day</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in teacher_summary %}
                 <tr>
                     <td>{{ row.teacher__first_name }} {{ row.teacher__last_name }}</td>
                     <td>{{ row.total }}</td>
-                    <td>{{ row.present }}</td>
-                    <td>{{ row.absent }}</td>
+                    <td class="text-success fw-bold">{{ row.present }}</td>
+                    <td class="text-danger fw-bold">{{ row.absent }}</td>
                     <td>{{ row.leave }}</td>
                     <td>{{ row.cl }}</td>
                     <td>{{ row.half_day }}</td>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endif %}
 
-<section class="card">
-    <h2>Attendance Records</h2>
-
+<div class="content-card">
+    <h5 class="fw-bold mb-3"><i class="bi bi-table me-1"></i>Attendance Records</h5>
     {% if attendances %}
-        <table>
+    <div class="table-responsive">
+        <table class="table table-hover">
             <thead>
                 <tr>
                     <th>Teacher</th>
                     <th>School</th>
-                    <th>Course</th>
                     <th>Date</th>
-                    <th>Day</th>
                     <th>Status</th>
-                    <th>Time</th>
-                    <th>Room</th>
-                    <th class="right">Actions</th>
+                    <th>Verification</th>
+                    <th>Distance</th>
+                    <th>Selfie</th>
+                    <th>Approval</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for attendance in attendances %}
-                    <tr>
-                        <td>{{ attendance.teacher.full_name }}</td>
-                        <td>{{ attendance.school.name }}</td>
-                        <td>{{ attendance.course.name }}</td>
-                        <td>{{ attendance.attendance_date }}</td>
-                        <td>{{ attendance.get_weekday_display }}</td>
-                        <td>
-                            {% if attendance.attendance_status == "PRESENT" %}
-                                <span class="badge badge-present">Present</span>
-                            {% elif attendance.attendance_status == "ABSENT" %}
-                                <span class="badge badge-absent">Absent</span>
-                            {% elif attendance.attendance_status == "LEAVE" %}
-                                <span class="badge badge-leave">Leave</span>
-                            {% elif attendance.attendance_status == "CL" %}
-                                <span class="badge badge-cl">CL</span>
-                            {% elif attendance.attendance_status == "HALF_DAY" %}
-                                <span class="badge badge-half_day">Half Day</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ attendance.start_time }} - {{ attendance.end_time }}</td>
-                        <td>{{ attendance.room|default:"-" }}</td>
-                        <td class="right">
-                            <a href="{% url 'attendance_update' attendance.id %}">Edit</a>
-                            <a class="danger" href="{% url 'attendance_delete' attendance.id %}">Delete</a>
-                        </td>
-                    </tr>
+                <tr>
+                    <td>{{ attendance.teacher.full_name }}</td>
+                    <td>{{ attendance.school.name }}</td>
+                    <td>{{ attendance.attendance_date }}</td>
+                    <td>
+                        {% if attendance.attendance_status == "present" or attendance.attendance_status == "PRESENT" %}
+                            <span class="badge badge-present">Present</span>
+                        {% elif attendance.attendance_status == "absent" or attendance.attendance_status == "ABSENT" %}
+                            <span class="badge badge-absent">Absent</span>
+                        {% elif attendance.attendance_status == "leave" %}
+                            <span class="badge badge-leave">Leave</span>
+                        {% elif attendance.attendance_status == "cl" %}
+                            <span class="badge badge-cl">CL</span>
+                        {% elif attendance.attendance_status == "half_leave" %}
+                            <span class="badge badge-half_day">Half Day</span>
+                        {% elif attendance.attendance_status == "other" %}
+                            <span class="badge bg-secondary">Other</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge bg-info">{{ attendance.get_verification_method_display }}</span></td>
+                    <td>
+                        {% if attendance.distance_from_school is not None %}
+                            <span class="fw-bold">{{ attendance.distance_from_school }}m</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if attendance.selfie_image %}
+                            <a href="{{ attendance.selfie_image.url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
+                                <i class="bi bi-image"></i>
+                            </a>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if attendance.approval_status == "pending" %}
+                            <span class="badge badge-pending">Pending</span>
+                        {% elif attendance.approval_status == "approved" %}
+                            <span class="badge badge-approved">Approved</span>
+                        {% elif attendance.approval_status == "rejected" %}
+                            <span class="badge badge-rejected">Rejected</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'attendance_update' attendance.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-2">Edit</a>
+                        <a href="{% url 'attendance_delete' attendance.id %}" class="btn btn-sm btn-outline-danger rounded-pill px-2">Del</a>
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     {% else %}
-        <p>No attendance records found.</p>
+    <div class="text-center py-4">
+        <i class="bi bi-inbox display-4 text-muted"></i>
+        <p class="text-muted mt-2">No attendance records found.</p>
+    </div>
     {% endif %}
-</section>
+</div>
 {% endblock %}

@@ -33,6 +33,13 @@ urlpatterns = [
     path("attendances/export/", views.attendance_export, name="attendance_export"),
     path("attendances/report/", views.attendance_report, name="attendance_report"),
 
+    # Admin Approval
+    path("approvals/", views.admin_pending_requests, name="admin_pending_requests"),
+    path("approvals/all/", views.admin_all_requests, name="admin_all_requests"),
+    path("approvals/<int:pk>/approve/", views.admin_approve, name="admin_approve"),
+    path("approvals/<int:pk>/reject/", views.admin_reject, name="admin_reject"),
+
+    # API
     path("api/teachers/", views.api_teacher_list, name="api_teacher_list"),
     path("api/teachers/create/", views.api_teacher_create, name="api_teacher_create"),
     path("api/teachers/<int:pk>/", views.api_teacher_detail, name="api_teacher_detail"),

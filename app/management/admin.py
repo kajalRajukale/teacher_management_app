@@ -43,11 +43,10 @@ class AttendanceAdmin(admin.ModelAdmin):
         "standard_class",
         "attendance_date",
         "attendance_time",
-        "location",
-        "latitude",
-        "longitude",
-        "distance_from_school",
         "verification_method",
+        "approval_status",
+        "approved_by",
+        "distance_from_school",
         "created_at",
     )
 
@@ -56,6 +55,7 @@ class AttendanceAdmin(admin.ModelAdmin):
         "attendance_date",
         "school",
         "verification_method",
+        "approval_status",
     )
 
     search_fields = (
@@ -65,7 +65,7 @@ class AttendanceAdmin(admin.ModelAdmin):
         "location",
     )
 
-    readonly_fields = ("created_at", "marked_at")
+    readonly_fields = ("created_at", "marked_at", "approved_at")
     actions = ["export_to_csv"]
 
     @admin.action(description="Export selected attendance records to CSV")
@@ -78,20 +78,25 @@ class AttendanceAdmin(admin.ModelAdmin):
         
         writer = csv.writer(response)
         writer.writerow([
-            "Teacher", "School", "Date", "Time", "Status", 
-            "Latitude", "Longitude", "Distance (m)", "Location", "Notes"
+            "Teacher", "School", "Date", "Time", "Status",
+            "Verification Method", "Distance (m)", "Approval Status",
+            "Approved By", "Approved At", "Latitude", "Longitude", "Location", "Notes"
         ])
         
-        for att in queryset.select_related("teacher", "school"):
+        for att in queryset.select_related("teacher", "school", "approved_by"):
             writer.writerow([
                 att.teacher.full_name,
                 att.school.name,
                 att.attendance_date,
                 att.attendance_time.strftime("%H:%M:%S") if att.attendance_time else "",
                 att.get_attendance_status_display(),
+                att.get_verification_method_display(),
+                att.distance_from_school or "",
+                att.get_approval_status_display(),
+                att.approved_by.get_full_name() if att.approved_by else "",
+                att.approved_at.strftime("%Y-%m-%d %H:%M:%S") if att.approved_at else "",
                 att.latitude or "",
                 att.longitude or "",
-                att.distance_from_school or "",
                 att.location or "",
                 att.notes,
             ])

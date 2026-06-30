@@ -58,13 +58,18 @@ class AttendanceForm(forms.ModelForm):
             "latitude", 
             "longitude", 
             "location", 
-            "distance_from_school"
+            "distance_from_school",
+            "verification_method",
+            "selfie_image",
+            "approval_status",
         ]
         widgets = {
-            "attendance_status": forms.Select(attrs={"class": "status-select"}),
-            "attendance_date": forms.DateInput(attrs={"type": "date"}),
-            "attendance_time": forms.TimeInput(attrs={"type": "time"}),
-            "standard_class": forms.TextInput(attrs={"placeholder": "e.g. 10th Grade"}),
+            "attendance_status": forms.Select(attrs={"class": "form-select"}),
+            "attendance_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "attendance_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "standard_class": forms.TextInput(attrs={"placeholder": "e.g. 10th Grade", "class": "form-control"}),
+            "verification_method": forms.Select(attrs={"class": "form-select"}),
+            "approval_status": forms.Select(attrs={"class": "form-select"}),
         }
 
     def clean(self):
@@ -90,18 +95,20 @@ class AttendanceForm(forms.ModelForm):
 
 class TeacherAttendanceForm(forms.ModelForm):
     """
-    Simplified, mobile-friendly attendance mark form used by teachers.
-    Contains teacher and standard_class fields.
+    Mobile-friendly attendance mark form with GPS + Selfie verification.
     """
     class Meta:
         model = Attendance
-        fields = ["teacher", "standard_class"]
+        fields = ["teacher", "standard_class", "attendance_status"]
         widgets = {
             "standard_class": forms.TextInput(attrs={
+                "class": "form-control",
                 "placeholder": "e.g. 10th Grade, Class A",
-                "style": "padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 15px; width: 100%;"
             }),
             "teacher": forms.Select(attrs={
-                "style": "padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 15px; width: 100%;"
+                "class": "form-select",
+            }),
+            "attendance_status": forms.Select(attrs={
+                "class": "form-select",
             }),
         }
