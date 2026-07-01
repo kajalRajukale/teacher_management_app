@@ -52,6 +52,7 @@
                     <input type="hidden" name="latitude" id="id_latitude">
                     <input type="hidden" name="longitude" id="id_longitude">
                     <input type="hidden" name="selfie_data" id="id_selfie_data">
+                    <input type="hidden" name="action" id="id_action" value="">
 
                     <!-- Teacher Name -->
                     <div class="mb-3">
@@ -59,6 +60,7 @@
                         {% if is_teacher %}
                             <input type="text" class="form-control" value="{{ user.teacher_profile.full_name }}" readonly>
                         {% else %}
+                            <input type="text" id="id_teacher_search" class="form-control mb-2" placeholder="Search teacher name...">
                             <select name="teacher_id" id="id_teacher_id" class="form-select" required>
                                 <option value="">-- Select Teacher --</option>
                                 {% for t in teachers %}
@@ -71,7 +73,25 @@
                     <!-- Standard/Class -->
                     <div class="mb-3">
                         <label class="form-label fw-bold"><i class="bi bi-book me-1"></i>Standard/Class (STD) <span class="text-danger">*</span></label>
-                        <input type="text" name="standard_class" id="id_standard_class" class="form-control" required placeholder="e.g. 10th Grade, Class A">
+                        <select name="standard_class" id="id_standard_class" class="form-select" required>
+                            <option value="">-- Select Standard/Class --</option>
+                            <option value="Head Mistress">Head Mistress</option>
+                            <option value="Jr KG">Jr KG</option>
+                            <option value="Sr KG">Sr KG</option>
+                            <option value="1st">1st</option>
+                            <option value="2nd">2nd</option>
+                            <option value="3rd">3rd</option>
+                            <option value="4th">4th</option>
+                            <option value="5th">5th</option>
+                            <option value="6th">6th</option>
+                            <option value="7th">7th</option>
+                            <option value="8th">8th</option>
+                            <option value="9th">9th</option>
+                            <option value="10th">10th</option>
+                            <option value="Mother Teacher">Mother Teacher</option>
+                            <option value="Clerk">Clerk</option>
+                            <option value="Cleaning Staff (स्वच्छता कर्मचारी)">Cleaning Staff (स्वच्छता कर्मचारी)</option>
+                        </select>
                     </div>
 
                     <!-- Attendance Status -->
@@ -169,11 +189,58 @@
                         <div class="alert alert-warning py-2 mb-2">
                             <i class="bi bi-exclamation-circle me-1"></i>You are outside the school campus.
                         </div>
-                        <button type="submit" id="admin-override-btn" class="btn btn-outline-warning rounded-pill px-4">
+                        <button type="button" id="admin-override-btn" class="btn btn-outline-warning rounded-pill px-4 mb-2" onclick="document.getElementById('attendance-form').submit();">
                             <i class="bi bi-shield-check me-1"></i>I am inside the school. Request Admin Approval.
                         </button>
+                        {% if official_duty_categories %}
+                        <button type="button" id="official-duty-btn" class="btn btn-outline-info rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#officialDutyModal" style="display:none;">
+                            <i class="bi bi-briefcase me-1"></i>Official Duty
+                        </button>
+                        {% endif %}
                     </div>
                 </form>
+
+                {% if official_duty_categories %}
+                <!-- Official Duty Reason Modal -->
+                <div class="modal fade" id="officialDutyModal" tabindex="-1" aria-labelledby="officialDutyModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="officialDutyModalLabel"><i class="bi bi-briefcase me-2"></i>Official Duty Request</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info py-2 mb-3">
+                                    <i class="bi bi-info-circle me-1"></i>You are outside the school campus. Submit an official duty request with GPS location and selfie verification.
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Reason for Official Duty <span class="text-danger">*</span></label>
+                                    <textarea id="official-duty-reason" class="form-control" rows="3" placeholder="Enter reason for being outside school campus..." required></textarea>
+                                    <small class="text-muted">This reason will be reviewed by admin/head mistress.</small>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label fw-bold"><i class="bi bi-geo-alt me-1"></i>GPS Location</label>
+                                    <div class="form-control bg-light" id="od-gps-display">
+                                        <span class="text-warning fw-bold">Waiting for GPS...</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label fw-bold"><i class="bi bi-camera me-1"></i>Selfie</label>
+                                    <div id="od-selfie-status" class="form-control bg-light">
+                                        <span class="text-warning fw-bold">Capture selfie first...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" id="submit-official-duty-btn" class="btn btn-info rounded-pill px-4" disabled>
+                                    <i class="bi bi-send-fill me-1"></i>Submit Official Duty
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
             {% endif %}
         </div>
@@ -197,6 +264,32 @@ document.addEventListener("DOMContentLoaded", function() {
     const schoolData = document.getElementById("school-data");
     const schoolSelect = document.getElementById("id_school_id");
     const statusSelect = document.getElementById("id_attendance_status");
+    const teacherSearch = document.getElementById("id_teacher_search");
+    const teacherSelect = document.getElementById("id_teacher_id");
+    const actionInput = document.getElementById("id_action");
+    const officialDutyBtn = document.getElementById("official-duty-btn");
+    const standardClassSelect = document.getElementById("id_standard_class");
+
+    // Eligible standard_class values for Official Duty
+    const officialDutyCategories = {{ official_duty_categories|safe }};
+
+    // Teacher search filter
+    if (teacherSearch && teacherSelect) {
+        teacherSearch.addEventListener("input", function() {
+            const query = this.value.toLowerCase();
+            const options = teacherSelect.options;
+            let firstMatch = null;
+            for (let i = 1; i < options.length; i++) {
+                const match = options[i].text.toLowerCase().includes(query);
+                options[i].hidden = !match;
+                options[i].disabled = !match;
+                if (match && !firstMatch) firstMatch = options[i];
+            }
+            if (query && firstMatch) {
+                teacherSelect.value = firstMatch.value;
+            }
+        });
+    }
 
     let userLat = null, userLng = null, userAccuracy = null;
     let gpsChecking = false;
@@ -301,6 +394,9 @@ document.addEventListener("DOMContentLoaded", function() {
     if (statusSelect) {
         statusSelect.addEventListener("change", evaluateSubmit);
     }
+    if (standardClassSelect) {
+        standardClassSelect.addEventListener("change", evaluateSubmit);
+    }
 
     function startGPS() {
         if (!navigator.geolocation) {
@@ -341,6 +437,8 @@ document.addEventListener("DOMContentLoaded", function() {
         if (gpsChecking) return;
 
         const needsGPS = statusSelect && (statusSelect.value === "present" || statusSelect.value === "half_leave");
+        const selectedClass = standardClassSelect ? standardClassSelect.value : "";
+        const canUseOfficialDuty = officialDutyCategories.indexOf(selectedClass) !== -1;
 
         if (!needsGPS) {
             // GPS not required for this status
@@ -358,6 +456,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 ? "btn btn-lg btn-mark rounded-pill py-3"
                 : "btn btn-lg btn-secondary rounded-pill py-3";
             adminOverrideSection.style.display = "none";
+            actionInput.value = "";
             return;
         }
 
@@ -410,6 +509,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 ? "btn btn-lg btn-mark rounded-pill py-3"
                 : "btn btn-lg btn-secondary rounded-pill py-3";
             adminOverrideSection.style.display = "none";
+            actionInput.value = "";
         } else {
             banner.className = "alert alert-danger text-center py-3 mb-4";
             statusText.innerHTML = '<i class="bi bi-geo-alt-fill me-1"></i>Outside School Campus';
@@ -420,6 +520,19 @@ document.addEventListener("DOMContentLoaded", function() {
             submitBtn.innerHTML = '<i class="bi bi-x-circle me-2"></i>Outside Campus';
             submitBtn.className = "btn btn-lg btn-danger rounded-pill py-3";
             adminOverrideSection.style.display = "block";
+            actionInput.value = "";
+
+            // Show Official Duty button for eligible staff
+            if (officialDutyBtn && canUseOfficialDuty) {
+                officialDutyBtn.style.display = "inline-block";
+                // Update OD modal GPS display
+                var odGpsDisplay = document.getElementById("od-gps-display");
+                if (odGpsDisplay) {
+                    odGpsDisplay.innerHTML = `<span class="font-monospace text-success">Lat: ${userLat.toFixed(6)}, Lon: ${userLng.toFixed(6)}</span>`;
+                }
+            } else if (officialDutyBtn) {
+                officialDutyBtn.style.display = "none";
+            }
         }
     }
 
@@ -427,6 +540,62 @@ document.addEventListener("DOMContentLoaded", function() {
         banner.className = `alert alert-${type} text-center py-3 mb-4`;
         statusText.innerHTML = msg;
         detailText.innerHTML = "";
+    }
+
+    // Official Duty Modal Logic
+    var submitODBtn = document.getElementById("submit-official-duty-btn");
+    var odReasonInput = document.getElementById("official-duty-reason");
+    var odSelfieStatus = document.getElementById("od-selfie-status");
+
+    if (submitODBtn && odReasonInput) {
+        function updateODButton() {
+            var reasonFilled = odReasonInput.value.trim().length > 0;
+            var gpsReady = userLat !== null && userLng !== null;
+            var selfieReady = selfieConfirmed;
+            submitODBtn.disabled = !(reasonFilled && gpsReady && selfieReady);
+
+            if (selfieReady) {
+                odSelfieStatus.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Selfie captured</span>';
+            }
+        }
+
+        odReasonInput.addEventListener("input", updateODButton);
+
+        var officialDutyModal = document.getElementById("officialDutyModal");
+        if (officialDutyModal) {
+            officialDutyModal.addEventListener("shown.bs.modal", function() {
+                updateODButton();
+            });
+        }
+
+        submitODBtn.addEventListener("click", function() {
+            var reason = odReasonInput.value.trim();
+            if (!reason) {
+                alert("Please enter a reason for Official Duty.");
+                return;
+            }
+            if (!selfieConfirmed) {
+                alert("Please capture a selfie first.");
+                return;
+            }
+            if (userLat === null || userLng === null) {
+                alert("GPS location is required.");
+                return;
+            }
+            actionInput.value = "official_duty";
+
+            // Create a hidden input for the reason and append to form
+            var reasonInput = document.createElement("input");
+            reasonInput.type = "hidden";
+            reasonInput.name = "official_duty_reason";
+            reasonInput.value = reason;
+            document.getElementById("attendance-form").appendChild(reasonInput);
+
+            // Close modal and submit
+            var modal = bootstrap.Modal.getInstance(officialDutyModal);
+            if (modal) modal.hide();
+            document.getElementById("attendance-form").submit();
+        });
     }
 });
 </script>

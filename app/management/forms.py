@@ -93,18 +93,41 @@ class AttendanceForm(forms.ModelForm):
         return cleaned_data
 
 
+STANDARD_CLASS_CHOICES = [
+    ("", "-- Select Standard/Class --"),
+    ("Head Mistress", "Head Mistress"),
+    ("Jr KG", "Jr KG"),
+    ("Sr KG", "Sr KG"),
+    ("1st", "1st"),
+    ("2nd", "2nd"),
+    ("3rd", "3rd"),
+    ("4th", "4th"),
+    ("5th", "5th"),
+    ("6th", "6th"),
+    ("7th", "7th"),
+    ("8th", "8th"),
+    ("9th", "9th"),
+    ("10th", "10th"),
+    ("Mother Teacher", "Mother Teacher"),
+    ("Clerk", "Clerk"),
+    ("Cleaning Staff (स्वच्छता कर्मचारी)", "Cleaning Staff (स्वच्छता कर्मचारी)"),
+]
+
+
 class TeacherAttendanceForm(forms.ModelForm):
     """
     Mobile-friendly attendance mark form with GPS + Selfie verification.
     """
+    standard_class = forms.ChoiceField(
+        choices=STANDARD_CLASS_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
     class Meta:
         model = Attendance
         fields = ["teacher", "standard_class", "attendance_status"]
         widgets = {
-            "standard_class": forms.TextInput(attrs={
-                "class": "form-control",
-                "placeholder": "e.g. 10th Grade, Class A",
-            }),
             "teacher": forms.Select(attrs={
                 "class": "form-select",
             }),

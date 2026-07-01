@@ -50,6 +50,7 @@
                     <th>School</th>
                     <th>Status</th>
                     <th>Date</th>
+                    <th>Time</th>
                     <th>Verification</th>
                     <th>Distance</th>
                     <th>Selfie</th>
@@ -79,6 +80,13 @@
                         {% endif %}
                     </td>
                     <td>{{ attendance.attendance_date }}</td>
+                    <td>
+                        {% if attendance.attendance_time %}
+                            {{ attendance.attendance_time|time:"h:i:s A" }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                     <td><span class="badge bg-info">{{ attendance.get_verification_method_display }}</span></td>
                     <td>
                         {% if attendance.distance_from_school is not None %}

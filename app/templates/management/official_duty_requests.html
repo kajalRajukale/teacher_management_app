@@ -1,0 +1,137 @@
+{% extends "management/base.html" %}
+{% block title %}Official Duty Requests{% endblock %}
+
+{% block content %}
+<div class="hero-card">
+    <h2><i class="bi bi-briefcase me-2"></i>Official Duty Requests</h2>
+    <p style="opacity:0.85;">Review and manage official duty attendance requests from staff members outside school campus.</p>
+</div>
+
+<!-- Filter Tabs -->
+<ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" href="{% url 'official_duty_requests' %}?status=pending">
+            <i class="bi bi-hourglass-split me-1"></i>Pending
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}" href="{% url 'official_duty_requests' %}?status=approved">
+            <i class="bi bi-check-circle me-1"></i>Approved
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status_filter == 'rejected' %}active{% endif %}" href="{% url 'official_duty_requests' %}?status=rejected">
+            <i class="bi bi-x-circle me-1"></i>Rejected
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if not status_filter %}active{% endif %}" href="{% url 'official_duty_requests' %}">
+            <i class="bi bi-list me-1"></i>All
+        </a>
+    </li>
+</ul>
+
+<div class="content-card">
+    {% if attendances %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Teacher</th>
+                    <th>Staff Category</th>
+                    <th>School</th>
+                    <th>Date</th>
+                    <th>Reason</th>
+                    <th>Verification</th>
+                    <th>Distance</th>
+                    <th>Selfie</th>
+                    <th>Approval</th>
+                    <th>Approved By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for att in attendances %}
+                <tr>
+                    <td><strong>{{ att.teacher.full_name }}</strong></td>
+                    <td><span class="badge bg-info">{{ att.standard_class }}</span></td>
+                    <td>{{ att.school.name }}</td>
+                    <td>{{ att.attendance_date }}</td>
+                    <td>
+                        {% if att.official_duty_reason %}
+                            <span class="text-truncate d-inline-block" style="max-width:200px;" title="{{ att.official_duty_reason }}">{{ att.official_duty_reason }}</span>
+                        {% elif att.notes %}
+                            <span class="text-truncate d-inline-block" style="max-width:200px;" title="{{ att.notes }}">{{ att.notes }}</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge bg-info">{{ att.get_verification_method_display }}</span></td>
+                    <td>
+                        {% if att.distance_from_school %}
+                            <span class="fw-bold">{{ att.distance_from_school|floatformat:0 }}m</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.selfie_image %}
+                            <a href="{{ att.selfie_image.url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
+                                <i class="bi bi-image me-1"></i>View
+                            </a>
+                        {% else %}
+                            <span class="text-muted">No selfie</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.approval_status == "pending" %}
+                            <span class="badge badge-pending"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+                        {% elif att.approval_status == "approved" %}
+                            <span class="badge badge-approved"><i class="bi bi-check-circle me-1"></i>Approved</span>
+                        {% elif att.approval_status == "rejected" %}
+                            <span class="badge badge-rejected"><i class="bi bi-x-circle me-1"></i>Rejected</span>
+                        {% else %}
+                            <span class="badge bg-secondary">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.approved_by %}
+                            {{ att.approved_by.get_full_name|default:att.approved_by.username }}
+                            <br><small class="text-muted">{{ att.approved_at|date:"M d, H:i" }}</small>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if att.approval_status == "pending" %}
+                        <div class="d-flex gap-1">
+                            <form method="post" action="{% url 'official_duty_approve' att.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
+                                    <i class="bi bi-check-lg"></i> Approve
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'official_duty_reject' att.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3">
+                                    <i class="bi bi-x-lg"></i> Reject
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <p class="text-muted mt-3">No official duty requests found.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

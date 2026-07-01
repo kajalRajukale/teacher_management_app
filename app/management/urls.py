@@ -39,6 +39,11 @@ urlpatterns = [
     path("approvals/<int:pk>/approve/", views.admin_approve, name="admin_approve"),
     path("approvals/<int:pk>/reject/", views.admin_reject, name="admin_reject"),
 
+    # Official Duty
+    path("official-duty/", views.official_duty_requests, name="official_duty_requests"),
+    path("official-duty/<int:pk>/approve/", views.official_duty_approve, name="official_duty_approve"),
+    path("official-duty/<int:pk>/reject/", views.official_duty_reject, name="official_duty_reject"),
+
     # API
     path("api/teachers/", views.api_teacher_list, name="api_teacher_list"),
     path("api/teachers/create/", views.api_teacher_create, name="api_teacher_create"),

@@ -23,6 +23,17 @@ from .utils import haversine
 
 logger = logging.getLogger(__name__)
 
+# Staff categories eligible for Official Duty (standard_class values)
+OFFICIAL_DUTY_STAFF_CATEGORIES = [
+    "Head Mistress",
+    "Jr KG", "Sr KG",
+    "1st", "2nd", "3rd", "4th", "5th",
+    "6th", "7th", "8th", "9th", "10th",
+    "Mother Teacher",
+    "Clerk",
+    "Cleaning Staff (स्वच्छता कर्मचारी)",
+]
+
 
 def dashboard(request):
     today = timezone.now().date()
@@ -139,6 +150,135 @@ def attendance_mark(request):
                 "school_latitude": s_lat,
                 "school_longitude": s_lng,
                 "allowed_radius": s_radius,
+                "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
+            })
+
+        # --- Official Duty submission ---
+        action = request.POST.get("action", "")
+        if action == "official_duty":
+            official_duty_reason = request.POST.get("official_duty_reason", "").strip()
+            lat_val = float(latitude) if latitude else None
+            lng_val = float(longitude) if longitude else None
+
+            if lat_val is None or lng_val is None:
+                return render(request, "management/attendance_mark.html", {
+                    "error": "GPS coordinates are required for Official Duty.",
+                    "teachers": teachers,
+                    "schools": schools,
+                    "is_teacher": is_teacher,
+                    "today": today,
+                    "school_latitude": s_lat,
+                    "school_longitude": s_lng,
+                    "allowed_radius": s_radius,
+                    "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
+                })
+
+            if not (-90 <= lat_val <= 90) or not (-180 <= lng_val <= 180):
+                return render(request, "management/attendance_mark.html", {
+                    "error": "Invalid GPS coordinates.",
+                    "teachers": teachers,
+                    "schools": schools,
+                    "is_teacher": is_teacher,
+                    "today": today,
+                    "school_latitude": s_lat,
+                    "school_longitude": s_lng,
+                    "allowed_radius": s_radius,
+                    "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
+                })
+
+            if not selfie_data or not selfie_data.startswith("data:image"):
+                return render(request, "management/attendance_mark.html", {
+                    "error": "Selfie verification is required for Official Duty.",
+                    "teachers": teachers,
+                    "schools": schools,
+                    "is_teacher": is_teacher,
+                    "today": today,
+                    "school_latitude": s_lat,
+                    "school_longitude": s_lng,
+                    "allowed_radius": s_radius,
+                    "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
+                })
+
+            if not official_duty_reason:
+                return render(request, "management/attendance_mark.html", {
+                    "error": "Please provide a reason for Official Duty.",
+                    "teachers": teachers,
+                    "schools": schools,
+                    "is_teacher": is_teacher,
+                    "today": today,
+                    "school_latitude": s_lat,
+                    "school_longitude": s_lng,
+                    "allowed_radius": s_radius,
+                    "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
+                })
+
+            # Check staff eligibility
+            if standard_class not in OFFICIAL_DUTY_STAFF_CATEGORIES:
+                return render(request, "management/attendance_mark.html", {
+                    "error": "Official Duty is not available for your staff category.",
+                    "teachers": teachers,
+                    "schools": schools,
+                    "is_teacher": is_teacher,
+                    "today": today,
+                    "school_latitude": s_lat,
+                    "school_longitude": s_lng,
+                    "allowed_radius": s_radius,
+                    "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
+                })
+
+            selfie_file = None
+            if selfie_data and selfie_data.startswith("data:image"):
+                try:
+                    header, data = selfie_data.split(",", 1)
+                    img_bytes = base64.b64decode(data)
+                    from django.core.files.base import ContentFile
+                    import uuid
+                    filename = f"selfie_{teacher.id}_{today}_{uuid.uuid4().hex[:8]}.jpg"
+                    selfie_file = ContentFile(img_bytes, name=filename)
+                except Exception as e:
+                    logger.warning(f"Failed to process selfie: {e}")
+
+            distance = None
+            if school and school.school_latitude is not None and school.school_longitude is not None:
+                distance = haversine(lat_val, lng_val, school.school_latitude, school.school_longitude)
+            elif global_settings and global_settings.school_latitude is not None and global_settings.school_longitude is not None:
+                distance = haversine(lat_val, lng_val, global_settings.school_latitude, global_settings.school_longitude)
+
+            location_desc = f"GPS: {lat_val:.6f}, {lng_val:.6f}"
+
+            if not school:
+                school = School.objects.first()
+
+            attendance = Attendance.objects.create(
+                teacher=teacher,
+                school=school,
+                attendance_date=today,
+                attendance_time=timezone.now().time(),
+                attendance_status="official_duty",
+                standard_class=standard_class,
+                notes=official_duty_reason,
+                latitude=lat_val,
+                longitude=lng_val,
+                location=location_desc,
+                distance_from_school=distance,
+                verification_method="GPS_SELFIE",
+                selfie_image=selfie_file,
+                approval_status="pending",
+                official_duty_reason=official_duty_reason,
+                created_at=timezone.now(),
+            )
+
+            return render(request, "management/attendance_mark.html", {
+                "success": "Official Duty request submitted. Awaiting admin/head mistress approval.",
+                "teachers": teachers,
+                "schools": schools,
+                "is_teacher": is_teacher,
+                "today": today,
+                "school_latitude": s_lat,
+                "school_longitude": s_lng,
+                "allowed_radius": s_radius,
+                "pending_approval": True,
+                "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
             })
 
         lat_val = float(latitude) if latitude else None
@@ -302,6 +442,7 @@ def attendance_mark(request):
         "school_latitude": s_lat,
         "school_longitude": s_lng,
         "allowed_radius": s_radius,
+        "official_duty_categories": OFFICIAL_DUTY_STAFF_CATEGORIES,
     })
 
 
@@ -349,6 +490,8 @@ def admin_approve(request, pk):
     attendance.approval_status = "approved"
     attendance.approved_by = request.user
     attendance.approved_at = timezone.now()
+    if attendance.attendance_status == "official_duty":
+        attendance.attendance_status = "present"
     attendance.save()
 
     return redirect("admin_all_requests")
@@ -369,6 +512,60 @@ def admin_reject(request, pk):
     attendance.save()
 
     return redirect("admin_all_requests")
+
+
+@login_required
+def official_duty_requests(request):
+    if not request.user.is_staff:
+        return render(request, "management/unauthorized.html")
+
+    status_filter = request.GET.get("status", "")
+    attendances = Attendance.objects.filter(
+        attendance_status="official_duty"
+    ).select_related("teacher", "school", "approved_by").order_by("-created_at")
+
+    if status_filter in ["pending", "approved", "rejected"]:
+        attendances = attendances.filter(approval_status=status_filter)
+
+    return render(request, "management/official_duty_requests.html", {
+        "attendances": attendances,
+        "status_filter": status_filter,
+    })
+
+
+@login_required
+def official_duty_approve(request, pk):
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    if request.method != "POST":
+        return redirect("official_duty_requests")
+
+    attendance = get_object_or_404(Attendance, pk=pk, attendance_status="official_duty")
+    attendance.approval_status = "approved"
+    attendance.attendance_status = "present"
+    attendance.approved_by = request.user
+    attendance.approved_at = timezone.now()
+    attendance.save()
+
+    return redirect("official_duty_requests")
+
+
+@login_required
+def official_duty_reject(request, pk):
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    if request.method != "POST":
+        return redirect("official_duty_requests")
+
+    attendance = get_object_or_404(Attendance, pk=pk, attendance_status="official_duty")
+    attendance.approval_status = "rejected"
+    attendance.approved_by = request.user
+    attendance.approved_at = timezone.now()
+    attendance.save()
+
+    return redirect("official_duty_requests")
 
 
 def attendance_list(request):

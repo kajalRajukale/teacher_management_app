@@ -103,6 +103,7 @@ class Attendance(models.Model):
         CL = 'cl', 'CL (Casual Leave)'
         HALF_LEAVE = 'half_leave', 'Half Leave'
         OTHER = 'other', 'Other'
+        OFFICIAL_DUTY = 'official_duty', 'Official Duty'
 
     WEEKDAY_CHOICES = [
         ('MON', 'Monday'),
@@ -162,6 +163,8 @@ class Attendance(models.Model):
     approval_status = models.CharField(max_length=20, choices=APPROVAL_CHOICES, default='none')
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_attendances')
     approved_at = models.DateTimeField(null=True, blank=True)
+
+    official_duty_reason = models.TextField(blank=True, null=True, help_text="Reason for official duty when outside school radius")
 
     class Meta:
         ordering = ['-attendance_date', 'weekday', 'start_time', 'teacher__last_name']

@@ -10,7 +10,6 @@ venv/
 env/
 
 # Django
-db.sqlite3
 staticfiles/
 media/
 
@@ -27,3 +26,7 @@ backups/
 # IDE
 .vscode/
 .idea/
+
+
+
+
